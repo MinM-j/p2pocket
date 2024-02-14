@@ -118,6 +118,7 @@ std::string stunRequestResponse (int &own_socket){
 void receiving(){
 	while (true) {
 		int result = recvfrom(own_socket, buffer, BUFLEN, 0, NULL, 0);
+    std::cout << "Received return value"<< result<<std::endl;
 		if (result > 0){
 			std::string message = std::string(buffer, buffer+result);
 			printf("%s\n",message.c_str());
@@ -143,8 +144,7 @@ int main(int argc, char** argv){
 		error("Binding error");
 	std::string own_public_presence = stunRequestResponse(own_socket);
 	printf("My public presence : %s\n",own_public_presence.c_str());
-	struct sockaddr_in server_address;	
-	server_address.sin_family = AF_INET;
+	struct sockaddr_in server_address;	server_address.sin_family = AF_INET;
 	if (local) {
 		server_address.sin_port = htons(localServerPort);
 		inet_pton(AF_INET, localServerIP.c_str(), &server_address.sin_addr);
@@ -160,6 +160,7 @@ int main(int argc, char** argv){
 	printf("\nEnter indentification : ");
 	std::cin >> indentification;
 	std::string message = indentification + " " + own_public_presence;
+
 	printf("%s",message.c_str());
 	sleep(1);
 	if (sendto(own_socket, message.c_str(), message.length(), 0, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) 
@@ -167,26 +168,33 @@ int main(int argc, char** argv){
 	bool not_found{true};
 	std::string endpoint;
 	struct sockaddr_in other_address;
+
 	while (not_found) {
 		int result = recvfrom(own_socket, buffer, BUFLEN, 0, NULL, 0);
 		if (result > 0) {
 			endpoint = std::string(buffer,buffer+result);
 			printf("\nConnected Endpoint: %s\n", endpoint.c_str());
-			std::string endpoint_ip = endpoint.substr(0,endpoint.find(":"));
-			uint16_t endpoint_port = stoi(endpoint.substr(endpoint.find(":")+1));
+
+			std::string endpoint_ip = own_public_presence.substr(0,endpoint.find(":"));
+			uint16_t endpoint_port = stoi(own_public_presence.substr(endpoint.find(":")+1));
+
+			//std::string endpoint_ip = endpoint.substr(0,endpoint.find(":"));
+			//uint16_t endpoint_port = stoi(endpoint.substr(endpoint.find(":")+1));
 			printf("\nEndpoint ip : %s\n Endpoint port : %d\n",endpoint_ip.c_str(),endpoint_port);
 			other_address.sin_family = AF_INET;
-			other_address.sin_port = htons(endpoint_port);
+      other_address.sin_port = htons(endpoint_port);
+			//other_address.sin_port = htons(2703);
 			inet_pton(AF_INET, endpoint_ip.c_str(), &other_address.sin_addr);
-			sendto(own_socket, "HI", 2, 0, (struct sockaddr *)&other_address, sizeof(other_address));
-			not_found = true;
+			int temp = sendto(own_socket, "HI", 2, 0, (struct sockaddr *)&other_address, sizeof(other_address));
+      std::cout<< temp<<std::endl;
+			not_found = false;
 		}
 	}
 	std::thread receive{receiving};
 	int i{1};
 	while(true){
 		message = "Hello " + std::to_string(i);
-		sendto(own_socket, message.c_str(), message.length(), 0, (struct sockaddr *)&other_address, sizeof(other_address));
+    int status = 	sendto(own_socket, message.c_str(), message.length(), 0, (struct sockaddr *)&other_address, sizeof(other_address));
 		i++;
 		sleep(1);
 	}
