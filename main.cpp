@@ -1,4 +1,5 @@
 #include<iostream>
+#include<fstream>
 #include<random>
 #include<functional>
 #include<bitset>
@@ -8,6 +9,8 @@
 #include <kademlia/message.h>
 #include <networking.h>
 #include <thread>
+#include"./include/storage/sha1.h"
+#include"./include/storage/storage.h"
 
 uint16_t PORT;
 
@@ -23,6 +26,15 @@ int main(int argc, char* argv[]){
 	ID id{"101101"};
 	rt.insert_node(id, 234);
 	rt.print();
+
+  std::cout<<fs::file_size("hello.txt")<<std::endl;
+
+  storage::store_file("hello.txt");
+
+
+
+    
+
 
   //std::cout<<rt<<std::endl;
   

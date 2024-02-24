@@ -7,6 +7,7 @@
 #include<random>
 #include<list>
 #include<array>
+#include<filesystem>
 
 #include"./id.h"
 #include"./config.h"
@@ -23,12 +24,15 @@
  * recently seen node and the tail of the list contains least recently seen node.
  */ 
 
+namespace fs = std::filesystem;
+
 class RoutingTable {
   private: 
     using NodeType = int; //temp
     using value_type=std::pair<ID, NodeType>;
     using k_bucket = std::list<value_type>;
     using k_buckets = std::array< k_bucket,NO_OF_BIT>;
+    //static constexpr fs::path table_path{"./data/routing_table"}; //extension??
 
   private:
     const ID m_self_id;
