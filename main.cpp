@@ -13,9 +13,14 @@ int main(){
   //std::cout<<generate_id()<<std::endl;
 
 
-  std::cout<<fs::file_size("hello.txt")<<std::endl;
+  //std::cout<<fs::file_size("hello.txt")<<std::endl;
 
-  storage::store_file("hello.txt");
+  //storage::store_file("hello.txt");
+
+  for(const auto& dir_entry: fs::recursive_directory_iterator("../minor")){
+    if(!fs::is_directory(dir_entry))
+    //std::cout<< dir_entry.file_size()<<" "<<dir_entry.path() <<std::endl;
+  }
 
 
 

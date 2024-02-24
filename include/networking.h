@@ -15,6 +15,14 @@ using namespace boost;
 const std::string IPADDRESS = "127.0.0.1";
 extern uint16_t PORT;
 
+enum class input_command_type{
+  HELP,
+  STORE,
+  RETRIVE,
+  LS,
+  FILE_STATUS
+};
+
 namespace network{
 	class client{
 		public:
@@ -23,6 +31,7 @@ namespace network{
 		private:
 			void handle_receive(const system::error_code& error, size_t bytes_tranferred);
 			void wait();
+      void event_loop();
 		private:
 			asio::io_context io_context;
 			asio::ip::udp::socket socket{io_context};

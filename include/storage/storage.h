@@ -7,7 +7,9 @@
 namespace fs = std::filesystem;
 
 constexpr std::size_t PIECE_SIZE = 100; //in bytes
+constexpr std::size_t NODE_REPLICA_SIZE=2;
 namespace storage{
+
   void store_file(fs::path file){
     std::error_code ec;
 
@@ -27,6 +29,7 @@ namespace storage{
     std::vector<std::pair<std::string, std::string>> pieces_content;
     pieces_content.reserve(no_of_pieces);
 
+    //encrypt the file before splitting it into pieces
 
     auto get_hash= [](const std::string& data){
       SHA1 hashing;
@@ -52,6 +55,12 @@ namespace storage{
           std::cout<<data.first<<std::endl;
           std::cout<<data.second<<std::endl<<std::endl;
     });
+
+    //now find nodes to store the file
+    auto no_of_nodes = NODE_REPLICA_SIZE * no_of_pieces;
+
+
+  
 
   }
 };
