@@ -1,6 +1,7 @@
 set(Path ${CMAKE_CURRENT_SOURCE_DIR})
-set(Hello ${Path}/hello.cpp)
-set(Main ${Path}/main.cpp)
+set(Networking ${Path}/networking.cpp)
 
-set(Sources ${Hello} ${Main} PARENT_SCOPE)
+add_subdirectory(${Path}/kademlia)
+
+set(Sources ${Kademlia} ${Networking} PARENT_SCOPE)
 

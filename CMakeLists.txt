@@ -6,9 +6,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 set(Path ${CMAKE_CURRENT_SOURCE_DIR})
 
+FIND_PACKAGE(Boost 1.83.0 COMPONENTS program_options serialization system REQUIRED)
+INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
+
 add_subdirectory(${Path}/include)
 add_subdirectory(${Path}/src)
 
-add_executable(Minor ${Headers} ${Sources})
+add_executable(Minor ${Path}/main.cpp ${Headers} ${Sources})
 
 target_include_directories(Minor PUBLIC ${Path}/include)
+TARGET_LINK_LIBRARIES(Minor LINK_PUBLIC ${Boost_LIBRARIES})
