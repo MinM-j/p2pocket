@@ -1,3 +1,14 @@
+#include<string>
+#include<id.h>
+#include<kademlia/message.h>
+
+namespace kademlia{
+namespace storage{
+	std::string find_file_piece(kademlia::ID id);
+	void store_piece(kademlia::message msg);
+}
+}
+/*
 #include<iostream>
 #include<filesystem>
 #include<system_error>
@@ -65,3 +76,4 @@ namespace storage{
 
   }
 };
+*/

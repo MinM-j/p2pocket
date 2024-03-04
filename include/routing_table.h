@@ -8,6 +8,7 @@
 #include<list>
 #include<array>
 #include<filesystem>
+#include <algorithm>
 
 #include"./id.h"
 #include"./config.h"
@@ -15,7 +16,7 @@
 /*
  * note: In the ID | std::bitset<N>, while accessing individual bits, 
  * the indexing is done from LSB to MSB, i.e. index 0 denotes lsb.
- * Similary, in `k_buckets_` of RoutingTable, lower index represents 
+ * Similary, in `k_buckets_` of routing_table, lower index represents 
  * less common prefixes.
  * For instance: For id: "101010" (owner) and "100010" have 2 common 
  * prefixes. Therefore in the routing table of "101010", "100010" will
@@ -26,21 +27,22 @@
 
 namespace fs = std::filesystem;
 
-class RoutingTable {
-  private: 
+namespace kademlia{
+class routing_table {
+  public:
     using NodeType = int; //temp
-    using value_type=std::pair<ID, NodeType>;
+    using value_type=std::pair<kademlia::ID, NodeType>;
     using k_bucket = std::list<value_type>;
     using k_buckets = std::array< k_bucket,NO_OF_BIT>;
     //static constexpr fs::path table_path{"./data/routing_table"}; //extension??
 
   private:
-    const ID m_self_id;
+    const kademlia::ID m_self_id;
     //This will be set from config file
     std::size_t m_bucket_size;
     k_buckets m_k_buckets;
   public: 
-    RoutingTable(std::string id)
+    routing_table(std::string id)
     : m_self_id{id}
     {
     m_bucket_size= CURRENT_BUCKET_SIZE;
@@ -52,7 +54,8 @@ class RoutingTable {
       }
       std::cout<<"================"<<std::endl;
     }
-    friend std::ostream& operator<<(std::ostream& out , const RoutingTable& table){
+	
+    friend std::ostream& operator<<(std::ostream& out , const routing_table& table){
       out<< "self: "<< table.m_self_id.to_string()<<std::endl;
       //for(const auto& bucket: table.m_k_buckets){
       for(int i = 0; i< table.m_k_buckets.size(); i++){
@@ -65,8 +68,11 @@ class RoutingTable {
       return out;
     }
 
+	k_bucket  find_node(kademlia::ID node_to_find){
+		return m_k_buckets[0];
+	}
 
-    void insert_node( ID node_id, NodeType node ){
+    void insert_node( kademlia::ID node_id, NodeType node ){
       std::cout<<"inserting  node with id: "<<node_id<<std::endl;
 
       auto k_bucket_index = find_k_bucket_index(node_id);
@@ -92,7 +98,7 @@ class RoutingTable {
       }
     }
 
-    void remove_node(ID node_id){
+    void remove_node(kademlia::ID node_id){
       auto k_bucket_index = find_k_bucket_index(node_id);
       auto& bucket = m_k_buckets[k_bucket_index];
 
@@ -105,8 +111,11 @@ class RoutingTable {
       }
     }
 
+	void handle_communication(kademlia::ID id){
+	}
+
   private: 
-    k_bucket::const_iterator  find_node_in_bucket(const k_bucket& bucket, const ID& node_id){
+    k_bucket::const_iterator  find_node_in_bucket(const k_bucket& bucket, const kademlia::ID& node_id){
       return std::find_if(bucket.cbegin(), bucket.cend(),
                         [&node_id](const value_type curr_node){
                         auto curr_node_id = curr_node.first;
@@ -114,7 +123,7 @@ class RoutingTable {
                         });
     }
 
-    std::size_t find_k_bucket_index(const ID& peer_id){
+    std::size_t find_k_bucket_index(const kademlia::ID& peer_id){
       std::size_t i = NO_OF_BIT;
 
       // find the first non-matching bit
@@ -126,9 +135,11 @@ class RoutingTable {
     }
 
 };
+}
 
 
 
 
 #endif // ROUTING_TABLE_H
+
 

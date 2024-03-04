@@ -7,6 +7,8 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/vector.hpp>
+#include <boost/serialization/bitset.hpp>
+#include <id.h>
 
 namespace kademlia{
 	//message type necessary for header
@@ -15,17 +17,23 @@ namespace kademlia{
 		STORE,
 		FIND_NODE,
 		FIND_VALUE,
+		PING_RESPONSE,
+		STORE_RESPONSE,
+		FIND_NODE_RESPONSE,
+		FIND_VALUE_RESPONSE,
 	};
 
 	//message header that holds the message type and total bytes of message
 	struct messageHeader{
 		messageType msg_type;
+		kademlia::ID self_id;
 		uint32_t size = 0;
 
 		friend class boost::serialization::access;
 		template<typename Archive>
 		void serialize(Archive& ar, const unsigned int version){
 			ar & msg_type;
+			ar & self_id;
 			ar & size;
 		}
 	};
@@ -38,7 +46,7 @@ namespace kademlia{
 		message() = default;
 
 		//constructor where the type of message is defined
-		message(const messageType msg_type);
+		message(const messageType msg_type, ID self_id);
 
 		//returns the type of message
 		messageType type() const;

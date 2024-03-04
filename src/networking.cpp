@@ -1,6 +1,7 @@
 #include <networking.h>
 #include<filesystem>
 #include<stdexcept>
+#include<storage.h>
 
 /*
 //make this dir in first run
@@ -11,7 +12,7 @@ constexprt std::size_t MAX_ALLOCATED_STORAGE = 100*1024*1024; //100 mb for now (
 //namespace fs = std::filesystem;
 
 //this should start the io_context and listen for every incoming messages
-kademlia::network::client::client(const uint16_t port) : PORT{port}{
+kademlia::network::client::client(const uint16_t port, std::string id) : PORT{port}, self_id{id}, routing_table{"sth"}{
 	socket.open(asio::ip::udp::v4());
 	socket.bind(asio::ip::udp::endpoint(asio::ip::address::from_string(IPADDRESS), PORT));
 }
@@ -51,16 +52,30 @@ void kademlia::network::client::handle_receive(const system::error_code& error, 
 		ia >> msg;
 	}
 
-	if (msg.type() == kademlia::messageType::PING) {
-		std::cout << "\nIt is ping";
+	endpoint_type endpoint(remote_endpoint.address().to_string(),remote_endpoint.port());
+
+	switch(msg.type()){
+		case kademlia::messageType::PING:
+			handle_ping_request(endpoint, msg);
+			break;
+		case kademlia::messageType::STORE:
+			handle_store_request(endpoint, msg);
+			break;
+		case kademlia::messageType::FIND_NODE:
+			handle_find_node_request(endpoint, msg);
+			break;
+		case kademlia::messageType::FIND_VALUE:
+			handle_find_value_request(endpoint, msg);
+			break;
+
+		case kademlia::messageType::PING_RESPONSE:
+		case kademlia::messageType::STORE_RESPONSE:
+		case kademlia::messageType::FIND_NODE_RESPONSE:
+		case kademlia::messageType::FIND_VALUE_RESPONSE:
+			responses.insert({msg.header.self_id, msg});
+			break;
+
 	}
-
-	int a; float d; char b; std::string e;
-
-	msg >> b >> d >> a;
-
-	std::cout << a << "\n" << d << "\n" << b << "\n" << std::endl;
-
 	wait();
 }
 
@@ -79,121 +94,84 @@ void kademlia::network::client::send(const std::pair<std::string, uint16_t> endp
 
 }
 
-void kademlia::network::client::ping(std::pair<std::string,uint16_t> endpoint){
-	message ping{messageType::PING};
-	send(endpoint, ping);
-}
-
-void kademlia::network::client::find_node(std::pair<std::string,uint16_t> endpoint, std::string node_id){
-
-}
-
 kademlia::network::client::~client(){
 	socket.close();
 }
-/*
-void handle_get_storage_info(const std::size_t requested_storage){
-  using it = fs::recursive_directory_iterator;
 
-  std::size_t total_used_size{};
+void kademlia::network::client::send_ping_request(endpoint_type endpoint){
+	message request{messageType::PING, self_id};
+	send(endpoint, request);
+}
 
-  for(const auto& dir_entry: fs::recursive_directory_iterator(data_dir)){
-    if(fs::is_directory(dir_entry))
-      continue;
-    total_occupied_size = dir_entry.file_size();
-  }
-  const std::size_t available_storage= MAX_ALLOCATED_STORAGE - total_used_size;
+void kademlia::network::client::send_store_request(endpoint_type endpoint, kademlia::ID piece_hash, std::string content){
+	message request{messageType::STORE, self_id};
+	//TODO SERIALIZE: pair
+	request<<content<<piece_hash;
+	send(endpoint,request);
+}
 
-  if(available_storage>requested_storage){
-    //note if two peer concurrently request for resouces before actually storing file, 
-    //then both will get ok response but only one of them will be able to store if the 
-    //free storage is just enough for one file
-    //solution: create a reserved file with random content of file size of requested_storage 
-    //and delete the file when the node actually stores the content
-    //OR just reject when the latter node actually wants to store the file IDK? 
-    //This is to do after the mid defense
+void kademlia::network::client::send_find_id_request(endpoint_type endpoint, kademlia::ID node_id){
+	message request{messageType::FIND_NODE, self_id};
+	request<<node_id;
 
-    //RETURN OK STATUS  and storage details too?
-  }
-  else{
-    //RETURN NO STORAGE STATUS 
-  }
+	send(endpoint, request);
+}
 
+void kademlia::network::client::send_find_value_request(endpoint_type endpoint, kademlia::ID piece_id){
+	send_find_node_request(endpoint, piece_id);
+}
+
+void kademlia::network::client::send_find_node_request(endpoint_type endpoint, kademlia::ID node_id){
+	send_find_node_request(endpoint, node_id);
+}
+
+void kademlia::network::client::handle_ping_request(const endpoint_type endpoint,const kademlia::message msg){
+
+	routing_table.handle_communication(msg.header.self_id);
+
+	kademlia::message response{kademlia::messageType::PING_RESPONSE,self_id};
+	send(endpoint,response);
+}
+//TODO: handle storage query
+
+void kademlia::network::client::handle_store_request(const endpoint_type endpoint,const kademlia::message msg){
+	kademlia::message response{kademlia::messageType::STORE_RESPONSE,self_id};
+	routing_table.handle_communication(msg.header.self_id);
+
+	try{
+		kademlia::storage::store_piece(msg);
+		response<<"success";
+	}catch(...){
+		response<<"error";
+	}
+	send(endpoint,response);
 
 }
 
-void network::client::event_loop(){
-  std::string input;
+void kademlia::network::client::handle_find_node_request(const endpoint_type endpoint,const kademlia::message msg){
+	ID node_to_find;
+	msg >> node_to_find;
 
+	routing_table.handle_communication(msg.header.self_id);
+	const kademlia::routing_table::k_bucket  nodes = routing_table.find_node(node_to_find);
 
-  using enum input_command_type;
-  std::map<input_command_type, std::string> command_entries{
-        {HELP,"help"},
-        {STORE,"store"},
-        {RETRIVE,"retrieve"},
-        {LS,"ls"},
-        {FILE_STATUS,"file_status"}
-  };
-
-  while(1){
-    std::cout<<"p2pocket: ";
-    std::cin>>input;
-
-    for(auto [command, command_string]: command_entries){
-      if(input.starts_with(command_string)){
-        command_string.erase(0, command_string.length()+1); //+1 for white space(single) , use trim instead
-        try{
-        }
-        catch(const std::invalid_argument& error){
-          std::cout<<"error(invalid_args): "<<error<<std::endl;
-        }
-        break;
-      }
-    }
-  }
+	kademlia::message response{kademlia::messageType::FIND_NODE_RESPONSE,self_id};
+	response<<nodes;
+	send(endpoint, response);
 }
 
-void network::client::handle_input(command, args){
-  using enum input_command_type;
-  switch(command, args){
-    case HELP:
-      //print help
-      break;
-    case STORE:
-      //"store  file_path or directory_path"
-      client.execute_store_command(args);
-      break;
-    case RETRIVE:
-      break;
-    case LS:
-      break;
-    case FILE_STATU:
-      break;
-  };
+
+void kademlia::network::client::handle_find_value_request(const endpoint_type endpoint,const kademlia::message msg){
+	ID piece_id;
+	msg>>piece_id;
+
+	routing_table.handle_communication(msg.header.self_id);
+	std::string content =kademlia::storage::find_file_piece(piece_id);
+
+	kademlia::message response{kademlia::messageType::FIND_VALUE_RESPONSE,self_id};
+
+	if(!content.empty()){
+		response << content;
+	}
+	send(endpoint, response);
 }
-
-void trim_string(std::string& str_to_trim){
-}
-
-void network::client::execute_store_command(std::string file_or_dir_path){
-  //not though about absolute or relative path
-  //since no idea what will be the cwd used by fs::exists in case of relative path?
-  // make the path relative to the cwd?
-  if(!fs::exists(file_or_dir_path)){
-    //std::cout<<"invalid file or directory path: "<<file_or_dir_path<<std::endl;
-    throw std::invalid_argument("invalid file or directory or path: "+file_or_dir_path);// may not work without c_str()
-  }
-
-  if(fs::directory(file_or_dir_path)){
-    //do this later
-    return;
-  }
-
-  client.store_file();
-
-
-  }
-
-
-}
-*/

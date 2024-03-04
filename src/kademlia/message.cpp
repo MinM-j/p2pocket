@@ -1,8 +1,8 @@
-
 #include <kademlia/message.h>
 #include <networking.h>
 
-kademlia::message::message(const messageType msg_type){
+kademlia::message::message(const messageType msg_type, ID id){
+	header.self_id = id;
 	header.msg_type = msg_type;
 }
 
@@ -11,10 +11,6 @@ kademlia::messageType kademlia::message::type() const{
 }
 
 size_t kademlia::message::size() const{
+///* TODO:  <04-03-24, yourname> */
 	return sizeof(messageType) + body.size();
-}
-
-void::kademlia::message_protocol::ping(std::pair<std::string,uint16_t> endpoint){
-	message ping{messageType::PING};
-	
 }
