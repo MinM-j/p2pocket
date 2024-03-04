@@ -20,13 +20,6 @@ using endpoint_type = std::pair<std::string,uint16_t>;
 //local ip of a device always constant only for testing purpose in practical should hold own ip and port it is binding
 const std::string IPADDRESS = "127.0.0.1";
 
-enum class input_command_type{
-  HELP,
-  STORE,
-  RETRIVE,
-  LS,
-  FILE_STATUS
-};
 
 namespace kademlia{
 	namespace network{
