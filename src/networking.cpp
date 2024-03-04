@@ -2,48 +2,48 @@
 #include<filesystem>
 #include<stdexcept>
 
-
+/*
 //make this dir in first run
 constexpr fs::path data_dir{"p2pocket/data/"};
 constexprt std::size_t MAX_ALLOCATED_STORAGE = 100*1024*1024; //100 mb for now (temp)
+*/
 
-namespace fs = std::filesystem;
+//namespace fs = std::filesystem;
 
 //this should start the io_context and listen for every incoming messages
-network::client::client(const uint16_t port) : PORT{port}{
-	recv_buffer.reserve(100 * 1024);
+kademlia::network::client::client(const uint16_t port) : PORT{port}{
 	socket.open(asio::ip::udp::v4());
 	socket.bind(asio::ip::udp::endpoint(asio::ip::address::from_string(IPADDRESS), PORT));
 }
 
-void network::client::receive(){
+void kademlia::network::client::receive(){
 	wait();
 	io_context.run();
 }
 
 //basically a function for asynchronous receive operation
-void network::client::wait(){
+void kademlia::network::client::wait(){
 	socket.async_receive_from(asio::buffer(recv_buffer),
 			remote_endpoint,
 			boost::bind(&client::handle_receive, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 }
 
 //function to handle the receive where the message will be parsed and required action will be taken
-void network::client::handle_receive(const system::error_code& error, size_t bytes_tranferred){
+void kademlia::network::client::handle_receive(const system::error_code& error, size_t bytes_tranferred){
 	if (error) {
 		std::cout << "Receive failed : " << error.message() << std::endl;
 		return;
 	}
 
-	std::cout << "\n\nData received\n\n";
+	std::cout << "\n\nData received from(" << remote_endpoint.address() << ":" << remote_endpoint.port() << ") byte received: " << bytes_tranferred <<"\n\n";
 
-	std::cout << std::string(recv_buffer.begin(),recv_buffer.begin() + bytes_tranferred);
-/*
+	std::string data(recv_buffer.begin(), recv_buffer.begin()+bytes_tranferred);
+	std::cout << data << std::endl;
 	std::cout << "\n\n Bytes receive : " << bytes_tranferred << "\n\n";
-	
-	for (int i = 0; i < bytes_tranferred; i++)
-		stream_data << recv_buffer[i];
 
+	std::stringstream stream_data;
+	stream_data << data;
+	
 	kademlia::message msg;
 
 	{
@@ -57,15 +57,14 @@ void network::client::handle_receive(const system::error_code& error, size_t byt
 
 	int a; float d; char b; std::string e;
 
-	msg >> e >> b >> d >> a;
+	msg >> b >> d >> a;
 
-	std::cout << a << "\n" << d << "\n" << b << "\n" << e << "\n\n";
-	*/
+	std::cout << a << "\n" << d << "\n" << b << "\n" << std::endl;
 
 	wait();
 }
 
-void network::client::send(const std::pair<std::string, uint16_t> endpoint,const kademlia::message& msg){
+void kademlia::network::client::send(const std::pair<std::string, uint16_t> endpoint,const kademlia::message& msg){
 	asio::ip::udp::endpoint receiver_endpoint = asio::ip::udp::endpoint(asio::ip::address::from_string(endpoint.first), endpoint.second);
 	boost::system::error_code send_error;
 	std::string data;
@@ -75,17 +74,24 @@ void network::client::send(const std::pair<std::string, uint16_t> endpoint,const
 		oa << msg;
 		data = stream_data.str();
 	}
+	auto sent = socket.send_to(asio::buffer(data), receiver_endpoint, 0, send_error);
+	std::cout << sent << " bytes sent to(" << receiver_endpoint.address() << ":" << receiver_endpoint.port() << ")\n\n";
 
-	auto sent = socket.send_to(asio::buffer(data.data(), data.size()), receiver_endpoint, 0, send_error);
-	std::cout << "\n\nData sent\n\nsize of data in bytes : " << data.size() << "\n\n";
-
-//Todo:
-	//data should be serialized before sending it can be achieved through boost::serialization as buffer only support POD
-
-
-//	auto sent = socket.send_to(asio::buffer(,), receiver_endpoint, 0, send_error);
 }
 
+void kademlia::network::client::ping(std::pair<std::string,uint16_t> endpoint){
+	message ping{messageType::PING};
+	send(endpoint, ping);
+}
+
+void kademlia::network::client::find_node(std::pair<std::string,uint16_t> endpoint, std::string node_id){
+
+}
+
+kademlia::network::client::~client(){
+	socket.close();
+}
+/*
 void handle_get_storage_info(const std::size_t requested_storage){
   using it = fs::recursive_directory_iterator;
 
@@ -190,3 +196,4 @@ void network::client::execute_store_command(std::string file_or_dir_path){
 
 
 }
+*/

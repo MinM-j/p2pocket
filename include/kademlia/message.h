@@ -74,6 +74,15 @@ namespace kademlia{
 		}
 
 	};
+
+	//Namespace to hold all the functions that messages
+	namespace message_protocol{
+		void ping(std::pair<std::string,uint16_t> endpoint);
+		void store(std::pair<std::string,std::string> key_value);
+		void find_node(std::pair<std::string,uint16_t> endpoint, std::string node_id);
+		void find_value(std::pair<std::string,uint16_t> endpoint, std::string node_id);
+	}
+
 }
 
 #endif

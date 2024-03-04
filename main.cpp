@@ -95,7 +95,7 @@ int main(int argc, char* argv[]){
 	char b = 'b';
 	std::string e = "baka";
 
-	msg << a << d << b << e;
+	msg << a << d << b;
 
 	if(argc == 1){
 		std::cout << "come on";
