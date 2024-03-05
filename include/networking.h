@@ -15,10 +15,10 @@
 
 #include <kademlia/message.h>
 #include <routing_table.h>
+#include <types.h>
 
 using namespace boost;
 
-using endpoint_type = std::pair<std::string,uint16_t>;
 //local ip of a device always constant only for testing purpose in practical should hold own ip and port it is binding
 const std::string IPADDRESS = "127.0.0.1";
 
@@ -30,7 +30,7 @@ namespace kademlia{
 				client(const uint16_t port, std::string self_id);
 				~client();
 				void receive();
-				void send(const std::pair<std::string, uint16_t> endpoint,const kademlia::message& msg);
+				void send(const std::pair<std::string, uint16_t> endpoint, kademlia::message& msg);
 
 				void send_ping_request(endpoint_type endpoint);
 				void send_store_request(endpoint_type endpoint, kademlia::ID hash, std::string content);
@@ -44,10 +44,10 @@ namespace kademlia{
 				void ping(std::pair<std::string,uint16_t> endpoint);
 				void find_node(std::pair<std::string,uint16_t> endpoint, std::string node_id);
 
-				void handle_ping_request(const endpoint_type endpoint,const kademlia::message msg);
-				void handle_find_node_request(const endpoint_type endpoint,const kademlia::message msg);
-				void handle_find_value_request(const endpoint_type endpoint,const kademlia::message msg);
-				void handle_store_request(const endpoint_type endpoint,const kademlia::message msg);
+				void handle_ping_request(const endpoint_type endpoint, kademlia::message msg);
+				void handle_find_node_request(const endpoint_type endpoint, kademlia::message msg);
+				void handle_find_value_request(const endpoint_type endpoint, kademlia::message msg);
+				void handle_store_request(const endpoint_type endpoint, kademlia::message msg);
 
 				void send_find_id_request(endpoint_type endpoint, kademlia::ID node_id);
 			//	void event_loop();
@@ -58,7 +58,7 @@ namespace kademlia{
 				asio::ip::udp::socket socket{io_context};
 				std::array<char, 100*1024> recv_buffer;
 				asio::ip::udp::endpoint remote_endpoint;
-				std::map<kademlia::ID,kademlia::message> responses;
+				std::map<kademlia::ID,kademlia::message, kademlia::ID_comparer> responses;
 				kademlia::routing_table routing_table;
 		};
 	}

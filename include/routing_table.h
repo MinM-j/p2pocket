@@ -10,8 +10,9 @@
 #include<filesystem>
 #include <algorithm>
 
-#include"./id.h"
-#include"./config.h"
+#include<id.h>
+#include<config.h>
+#include<types.h>
 
 /*
  * note: In the ID | std::bitset<N>, while accessing individual bits, 
@@ -30,7 +31,7 @@ namespace fs = std::filesystem;
 namespace kademlia{
 class routing_table {
   public:
-    using NodeType = int; //temp
+    using NodeType = endpoint_type; //temp
     using value_type=std::pair<kademlia::ID, NodeType>;
     using k_bucket = std::list<value_type>;
     using k_buckets = std::array< k_bucket,NO_OF_BIT>;
@@ -46,13 +47,6 @@ class routing_table {
     : m_self_id{id}
     {
     m_bucket_size= CURRENT_BUCKET_SIZE;
-    }
-
-    void print(){
-      for(int i = 0; i<m_k_buckets.size(); i++){
-        std::cout<<i<<" -> "<<m_k_buckets[i].size()<<std::endl;
-      }
-      std::cout<<"================"<<std::endl;
     }
 	
     friend std::ostream& operator<<(std::ostream& out , const routing_table& table){

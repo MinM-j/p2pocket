@@ -79,7 +79,7 @@ void kademlia::network::client::handle_receive(const system::error_code& error, 
 	wait();
 }
 
-void kademlia::network::client::send(const std::pair<std::string, uint16_t> endpoint,const kademlia::message& msg){
+void kademlia::network::client::send(const std::pair<std::string, uint16_t> endpoint,kademlia::message& msg){
 	asio::ip::udp::endpoint receiver_endpoint = asio::ip::udp::endpoint(asio::ip::address::from_string(endpoint.first), endpoint.second);
 	boost::system::error_code send_error;
 	std::string data;
@@ -125,7 +125,7 @@ void kademlia::network::client::send_find_node_request(endpoint_type endpoint, k
 	send_find_node_request(endpoint, node_id);
 }
 
-void kademlia::network::client::handle_ping_request(const endpoint_type endpoint,const kademlia::message msg){
+void kademlia::network::client::handle_ping_request(const endpoint_type endpoint,kademlia::message msg){
 
 	routing_table.handle_communication(msg.header.self_id);
 
@@ -134,7 +134,7 @@ void kademlia::network::client::handle_ping_request(const endpoint_type endpoint
 }
 //TODO: handle storage query
 
-void kademlia::network::client::handle_store_request(const endpoint_type endpoint,const kademlia::message msg){
+void kademlia::network::client::handle_store_request(const endpoint_type endpoint,kademlia::message msg){
 	kademlia::message response{kademlia::messageType::STORE_RESPONSE,self_id};
 	routing_table.handle_communication(msg.header.self_id);
 
@@ -148,7 +148,7 @@ void kademlia::network::client::handle_store_request(const endpoint_type endpoin
 
 }
 
-void kademlia::network::client::handle_find_node_request(const endpoint_type endpoint,const kademlia::message msg){
+void kademlia::network::client::handle_find_node_request(const endpoint_type endpoint,kademlia::message msg){
 	ID node_to_find;
 	msg >> node_to_find;
 
@@ -161,7 +161,7 @@ void kademlia::network::client::handle_find_node_request(const endpoint_type end
 }
 
 
-void kademlia::network::client::handle_find_value_request(const endpoint_type endpoint,const kademlia::message msg){
+void kademlia::network::client::handle_find_value_request(const endpoint_type endpoint,kademlia::message msg){
 	ID piece_id;
 	msg>>piece_id;
 

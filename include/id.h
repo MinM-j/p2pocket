@@ -4,32 +4,21 @@
 #include"config.h"
 
 
+
 namespace kademlia{
-	using ID = std::bitset<NO_OF_BIT>;
 
-	kademlia::ID generate_id(){
-    std::random_device random_device;
-    std::mt19937 generator;
-    generator.seed(random_device());
-    constexpr int generator_bit= 32; //size of std::mt19937()??
+using ID = std::bitset<NO_OF_BIT>;
 
-	kademlia::ID new_id;
-    for(int i = 0; i< NO_OF_BIT/generator_bit;i++){
-      auto random= generator();
-      new_id <<=generator_bit;
-      new_id |= std::bitset<NO_OF_BIT>(random);
-    }
+ID create_id(std::string str);
 
-    constexpr int remaining_bit_count = NO_OF_BIT % generator_bit;
-    if(remaining_bit_count != 0){
-      auto random = generator();
-      random >>= (generator_bit - remaining_bit_count);
-      new_id <<=remaining_bit_count;
-      new_id |= std::bitset<NO_OF_BIT>(random);
-    }
-    return ID{new_id.to_string()};
-
+struct  ID_comparer{
+  bool operator()( const ID& id1,  const ID& id2)const {
+     return id1.to_ulong() < id2.to_ulong();
   }
+};
+
+ID generate_id();
+
 }//namespace ID
 
-#endif //HELLO_H
+#endif //ID_H

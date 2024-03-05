@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(Path ${CMAKE_CURRENT_SOURCE_DIR})
 
-FIND_PACKAGE(Boost 1.83.0 COMPONENTS asio program_options serialization system REQUIRED)
+FIND_PACKAGE(Boost 1.83.0 COMPONENTS program_options serialization system REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
 
 add_subdirectory(${Path}/include)

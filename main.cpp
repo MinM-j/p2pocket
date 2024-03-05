@@ -13,7 +13,7 @@
 
 //uint16_t PORT;
 
-#include <boost/asio.hpp>
+#include<id.h>
 
 int main(int argc, char* argv[]){
 
@@ -24,8 +24,7 @@ int main(int argc, char* argv[]){
 
   //event_loop();
 
-  boost::asio::socket sock{"hello"};
-
+  kademlia::ID id{kademlia::create_id("111000")};
 
 
 	return 0;

@@ -2,24 +2,21 @@
 #define MESSAGE_H
 
 #include <stdint.h>
+#include<sstream>
 #include <vector>
 #include <cstring>
-#include <string>
-#include <iostream>
-#include <sstream>
-#include <stdint.h>
-#include <type_traits>
 
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/vector.hpp>
-#include <boost/serialization/bitset.hpp>
 #include <boost/serialization/list.hpp>
+#include <boost/serialization/utility.hpp>
+#include <boost/serialization/bitset.hpp>
 
+
+#include <config.h>
 #include <id.h>
-#include<routing_table.h>
-
-
+#include <routing_table.h>
 
 namespace kademlia{
 //message type necessary for header
@@ -51,31 +48,11 @@ struct messageHeader{
 
 //message contains header and body (body is of type uint8_t to make in handle in a byte)
 struct message{
-  template<typename T>
-  class toBeSerialized {
-  private:
-    T s;
-    std::string serialized;
-  public:
-    template<class Archive>
-    void serialize(Archive& ar, const unsigned int version)
-    {
-      ar & s;
-    }
-
-  };
-
-  template<typename T>
-  std::string serialize(const toBeSerialized<T>& data){
-    std::stringstream stream_data;
-    boost::archive::binary_oarchive oa(stream_data);
-    oa << data;
-    return stream_data.str();
-  }
-
+public:
   messageHeader header{};
   std::vector<uint8_t> body;
 
+public:
   message() = default;
 
   //constructor where the type of message is defined
@@ -87,34 +64,92 @@ struct message{
   //returns the size of message 
   size_t size() const;
 
-  //toBeSerialized<dataType> serialize_obj{data};
-  //serialized_data = serialize(serialize_obj);
+public:
+  class k_bucket_serialization {
+  private:
+    using k_bucket=kademlia::routing_table::k_bucket;
+    std::string serialized;
+  public:
+    k_bucket s;
+
+    k_bucket_serialization()=default;
+    k_bucket_serialization(const k_bucket& data): s{data}{}
+
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version)
+    {
+      ar & s;
+    }
+
+    std::string serialize(){
+      std::stringstream stream_data;
+      boost::archive::binary_oarchive oa(stream_data);
+      oa << *this;
+      return stream_data.str();
+    }
+
+  };
 
   //to create the body of message of different data types
-  template<typename dataType>
-  friend message& operator << (message& msg,const dataType& data){
-    std::string serialized_data = 
-      (std::is_same<dataType,ID>::value || std::is_same<dataType, routing_table::k_bucket>::value) 
-      ? serialize(toBeSerialized<dataType>{data})
-      : data;
+  //k__bucket
+  //ID
+  //string const char *
 
+  friend message& operator << (message& msg , kademlia::routing_table::k_bucket data){
+    k_bucket_serialization serialized_data{data};
+    std::string serialized_str = serialized_data.serialize();
+    msg<<serialized_str;
+    return msg;
+  }
+
+  friend message& operator << (message& msg,ID id){
+    msg<<id.to_string();
+    return msg;
+  }
+
+  friend message& operator << (message& msg,std::string data ){
     size_t i = msg.body.size();
-    msg.body.resize(i + sizeof(dataType));
-    //memcpy(msg.body.data()+i, &data, sizeof(dataType));
-    std::memcpy(msg.body().data() + i, serialized_data.data(), serialized_data.size());
+    size_t data_size = data.size();
+    msg.body.resize(i + data_size);
+    memcpy(msg.body.data()+i, data.data(), data_size);
     msg.header.size = msg.size();
     return msg;
   }
 
-  //to read from body
-  template<typename dataType>
-  friend message& operator >> (message& msg, dataType& data){
-    size_t i = msg.body.size() - sizeof(dataType);
-    memcpy(&data, msg.body.data()+i, sizeof(dataType));
-    msg.body.resize(i);
-    msg.header.size = msg.size();
+
+  //==============================
+
+  friend message& operator >> (message& msg , kademlia::routing_table::k_bucket& data){
+    k_bucket_serialization bucket_serializer{};
+    std::stringstream stream_data;
+
+    std::string raw_data{msg.body.begin(), msg.body.end()};
+
+    stream_data << raw_data;
+    boost::archive::binary_iarchive ia(stream_data);
+    ia >> bucket_serializer;
+
+    data= bucket_serializer.s;
+
     return msg;
   }
+
+  friend message& operator >> (message& msg,ID& id){
+    size_t i= msg.body.size()-NO_OF_BIT;
+    std::string id_str{msg.body.begin() + i, msg.body.end()};
+
+    msg.body.resize(i);
+
+    id = kademlia::create_id(id_str);
+
+    return  msg;
+  }
+
+  friend message& operator >> (message& msg,std::string& data ){
+    data.assign(msg.body.begin(),msg.body.end());
+    return msg;
+  }
+
 
   friend class boost::serialization::access;
   template<typename Archive>
@@ -124,7 +159,6 @@ struct message{
   }
 
 };
-
+}
 
 #endif
-
