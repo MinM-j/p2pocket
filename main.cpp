@@ -13,6 +13,8 @@
 
 //uint16_t PORT;
 
+#include <boost/asio.hpp>
+
 int main(int argc, char* argv[]){
 
 	//std::string id{"23479328"};
@@ -20,7 +22,11 @@ int main(int argc, char* argv[]){
 	//std::thread receive_thread([&] {client.receive();});
 	//receive_thread.join();
 
-  event_loop();
+  //event_loop();
+
+  boost::asio::socket sock{"hello"};
+
+
 
 	return 0;
 }

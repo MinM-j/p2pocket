@@ -3,16 +3,18 @@
 #ifndef NETWORKING_H
 #define NETWORKING_H
 
-#include <boost/asio.hpp>
-#include <boost/system.hpp>
-#include <boost/bind/bind.hpp>
-#include <kademlia/message.h>
 #include <iostream>
 #include <stdint.h>
 #include <vector>
 #include <map>
 #include <utility>
-#include<routing_table.h>
+
+#include <boost/asio.hpp>
+#include <boost/system.hpp>
+#include <boost/bind/bind.hpp>
+
+#include <kademlia/message.h>
+#include <routing_table.h>
 
 using namespace boost;
 
