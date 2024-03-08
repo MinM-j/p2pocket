@@ -7,6 +7,7 @@ ${Path}/routing_table.h
 ${Path}/sha1.h
 ${Path}/storage.h
 ${Path}/types.h
+${Path}/timer.h
 )
 
 add_subdirectory(${Path}/kademlia)

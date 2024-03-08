@@ -15,7 +15,14 @@ INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
 add_subdirectory(${Path}/include)
 add_subdirectory(${Path}/src)
 
-add_executable(Minor ${Path}/main.cpp ${Headers} ${Sources})
+
+set(Debug_files
+${Path}/debug.h
+${Path}/debug.cpp
+)
+
+add_executable(Minor ${Path}/main.cpp  ${Headers} ${Sources} ${Debug_files})
 
 target_include_directories(Minor PUBLIC ${Path}/include)
+target_include_directories(Minor PUBLIC ${Path})
 TARGET_LINK_LIBRARIES(Minor LINK_PUBLIC ${Boost_LIBRARIES})

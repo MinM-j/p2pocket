@@ -1,31 +1,32 @@
-//#include<iostream>
-//#include<fstream>
-//#include<random>
-//#include<functional>
-//#include<bitset>
-//#include<string>
-//#include"./include/routing_table.h"
-//#include"./include/id.h"
-//#include <kademlia/message.h>
-//#include <networking.h>
-//#include <thread>
-#include "./include/interface.h"
+#include<debug.h>
+#include<iostream>
+#include <iostream>
+#include <sstream>
+#include <bitset>
+#include <string>
 
-//uint16_t PORT;
+using namespace std;
 
-#include<id.h>
+int mmain()
+{
+  string s = "uFFFFFFFF";
+  std::cout<<s<<std::endl;
+  stringstream ss;
+  ss << hex << s;
+  unsigned n;
+  ss >> n;
+  bitset<32> b(n);
+  // outputs "00000000000000000000000000001010"
+  cout << b.to_string() << endl;
+}
 
 int main(int argc, char* argv[]){
+  //timer_debug();
 
-	//std::string id{"23479328"};
-	//kademlia::network::client client{PORT,id};
-	//std::thread receive_thread([&] {client.receive();});
-	//receive_thread.join();
-
-  //event_loop();
-
-  kademlia::ID id{kademlia::create_id("111000")};
+  //routing_table_debug();
 
 
-	return 0;
+  //client_debug();
+  event_loop();
+  return 0;
 }

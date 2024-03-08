@@ -28,7 +28,12 @@ ID generate_id(){
 
 
 ID create_id(std::string str){
-  std::reverse(str.begin(), str.end());
+  //just doesn't matter  just don't reverse at all
+  //std::reverse(str.begin(), str.end());
+
   return ID{str};
 }
+std::function<bool(const ID& , const ID&)> ID_comparer = []( const ID& id1,  const ID& id2) {
+  return id1.to_ulong() < id2.to_ulong();
+};
 }

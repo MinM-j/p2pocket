@@ -10,7 +10,7 @@
 #include<array>
 
 //for now keep it here
-inline constexpr int NO_OF_BIT = 6;
+inline constexpr int NO_OF_BIT = 8 ;
 inline constexpr int CURRENT_BUCKET_SIZE=4;
 
 #endif //CONFIG_H

@@ -6,8 +6,12 @@
 #include<fstream>
 #include<cmath>
 
-#include"../include/interface.h"
-#include"../include/sha1.h"
+#include<interface.h>
+#include<sha1.h>
+#include<networking.h>
+
+kademlia::network::client client{2222, std::string{"1110001100"}};
+
 void event_loop(){
 
   std::string input;
@@ -92,6 +96,8 @@ void handle_input(input_command_type command, const args_type& args){
 }
 //TODO: make all the directories in first initiliazation
 const std::string p2pocket_root_dir{"~/p2pocket/context_1/"};
+//data
+//filesystem
 const std::size_t PIECE_SIZE{100};
 
 void execute_pwd(){
@@ -174,9 +180,10 @@ void store_file(fs::path file_path){
     //const auto key = content_entry.first;
     //const auto value = content_entry.second;
 
+    client.store_file(kademlia::ID{key}, value);
     std::cout<<key<<" "<<value.size()<<std::endl;
-
   }
+
   //TODO: store the file
 
 
@@ -201,7 +208,38 @@ splitted_entries_type split_and_hash_file(fs::path file){
   auto get_hash= [](const std::string& data){
     SHA1 hashing;
     hashing.update(data);
-    return hashing.final();
+    std::string hash=hashing.final();//this is in hex form
+    std::stringstream ss;
+
+    //u<<hash<<std::endl;
+    char c;
+    c=hash[0];
+    int intval = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
+
+    //u<<"c: "<<c<<std::endl;
+    //u<<intval<<std::endl;
+
+    intval=intval<<4;
+    //u<<intval<<std::endl;
+
+    std::bitset<NO_OF_BIT> id(intval);
+    c=hash[1];
+    intval =  (c >= 'a') ? (c - 'a' + 10) : (c - '0');
+
+    //u<<"c: "<<c<<std::endl;
+    //u<<intval<<std::endl;
+
+    id|=intval;
+
+    //std::cout<<id.to_string()<<std::endl;
+
+
+
+    //std::cout<<std::endl;
+
+    //return hash;
+    return id.to_string();
+    //TEMP TODO: remove substr
   };
 
   for(int i = 0; i<no_of_pieces - 1; i++){
