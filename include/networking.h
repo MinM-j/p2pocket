@@ -16,6 +16,7 @@
 #include <kademlia/message.h>
 #include <routing_table.h>
 #include <types.h>
+#include <timer.h>
 
 using namespace boost;
 
@@ -24,10 +25,27 @@ const std::string IPADDRESS = "127.0.0.1";
 
 const double TIMEOUT_LIMIT=3; //in seconds
 
+std::ostream& operator<<(std::ostream& out, const kademlia::routing_table::k_bucket& kb);
+
 namespace kademlia{
 namespace network{
 class client{
 public:
+  enum peer_status{
+    REQUEST_SENT,
+    REQUEST_RECEIVED,
+    REQUEST_TIMEOUT,
+    NO_ACTION
+  };
+
+  struct peer_request_info{
+    endpoint_type endpoint;
+    peer_status status;
+    kademlia::timer timer;
+  };
+
+  using nodes_tracker_type=std::map<ID, peer_request_info, kademlia::ID_comparer>;
+
   client(const uint16_t port, std::string self_id);
   ~client();
   void receive();
@@ -39,7 +57,11 @@ public:
   void send_find_node_request(endpoint_type endpoint, kademlia::ID node_id);
 
 
+  void find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kademlia::ID id_to_find);
   void store_file(kademlia::ID file_hash, std::string content);
+  void bootstrap(kademlia::endpoint_type boot_ep);
+  kademlia::message wait_response(kademlia::ID id, kademlia::messageType msg_type, double wait_time=3);
+  kademlia::message get_first_response(double wait_time=2);
 private:
   void handle_receive(const system::error_code& error, size_t bytes_tranferred);
   void wait();
@@ -53,19 +75,24 @@ private:
   void handle_find_value_request(const endpoint_type endpoint, kademlia::message msg);
   void handle_store_request(const endpoint_type endpoint, kademlia::message msg);
 
-  //void send_find_id_request(endpoint_type endpoint, kademlia::ID node_id);
+  friend std::ostream& operator<<(std::ostream& out,const kademlia::endpoint_type& ep);
+  friend std::ostream& operator<<(std::ostream& out , const kademlia::routing_table::k_bucket& table);
+//void send_find_id_request(endpoint_type endpoint, kademlia::ID node_id);
+
 private:
-  uint16_t PORT;
-  kademlia::ID self_id;
-  asio::io_context io_context;
-  asio::ip::udp::socket socket{io_context};
-  std::array<char, 100*1024> recv_buffer;
-  asio::ip::udp::endpoint remote_endpoint;
-  std::map<kademlia::ID,kademlia::message, decltype(kademlia::ID_comparer)> responses;
-  kademlia::routing_table routing_table;
+uint16_t PORT;
+kademlia::ID self_id;
+asio::io_context io_context;
+asio::ip::udp::socket socket{io_context};
+std::array<char, 100*1024> recv_buffer;
+asio::ip::udp::endpoint remote_endpoint;
+  //TODO: can't have multiple responses from same node?
+std::map<kademlia::ID,kademlia::message, kademlia::ID_comparer> responses;
+kademlia::routing_table routing_table;
 };
 }
 }
+
 
 #endif
 

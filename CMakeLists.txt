@@ -26,3 +26,8 @@ add_executable(Minor ${Path}/main.cpp  ${Headers} ${Sources} ${Debug_files})
 target_include_directories(Minor PUBLIC ${Path}/include)
 target_include_directories(Minor PUBLIC ${Path})
 TARGET_LINK_LIBRARIES(Minor LINK_PUBLIC ${Boost_LIBRARIES})
+
+add_executable(Bootstrap ${Path}/bootstrap.cpp  ${Headers} ${Sources} ${Debug_files})
+target_include_directories(Bootstrap PUBLIC ${Path}/include)
+target_include_directories(Bootstrap PUBLIC ${Path})
+TARGET_LINK_LIBRARIES(Bootstrap LINK_PUBLIC ${Boost_LIBRARIES})

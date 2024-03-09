@@ -40,7 +40,7 @@ public:
   //static constexpr fs::path table_path{"./data/routing_table"}; //extension??
 
 private:
-   kademlia::ID m_self_id;
+  kademlia::ID m_self_id;
   //This will be set from config file
   std::size_t m_bucket_size;
   k_buckets m_k_buckets;
@@ -54,7 +54,7 @@ public:
   void insert_node( kademlia::ID node_id, node_type node );
   void remove_node(kademlia::ID node_id);
 
-  void handle_communication(kademlia::ID id);
+  void handle_communication( kademlia::ID node_id, node_type node );
 
   static k_bucket::const_iterator  find_node_in_bucket(const k_bucket& bucket, const kademlia::ID& node_id);
   static bool is_node_in_bucket(const k_bucket& bucket, const kademlia::ID& node_id);
@@ -63,6 +63,6 @@ private:
   std::size_t find_k_bucket_index(const kademlia::ID& peer_id);
 
 };
-}
+}//namespace kademlia
 
 #endif // ROUTING_TABLE_H

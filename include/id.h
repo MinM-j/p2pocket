@@ -12,16 +12,15 @@ using ID = std::bitset<NO_OF_BIT>;
 
 ID create_id(std::string str);
 
-//struct  ID_comparer{
-//bool operator()( const ID& id1,  const ID& id2)const {
-//return id1.to_ulong() < id2.to_ulong();
-//}
-//};
+struct  ID_comparer{
+bool operator()( const ID& id1,  const ID& id2)const;
+};
 
-extern std::function<bool(const ID& , const ID&)> ID_comparer;
+//using id_comparer_type= std::function<bool(const ID& , const ID&)>;
+//extern id_comparer_type ID_comparer;
 
 ID generate_id();
 
-}//namespace ID
+}//namespace kademlia
 
 #endif //ID_H

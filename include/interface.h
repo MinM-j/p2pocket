@@ -1,3 +1,5 @@
+#ifndef INTERFACE_H
+#define INTERFACE_H
 #include<iostream>
 #include<string>
 #include<vector>
@@ -11,12 +13,19 @@ enum class input_command_type{
   RETRIEVE,
   LS,
   FILE_STATUS,
-  PWD
+  PWD,
+  QUIT
 };
 
 
 using args_type = std::vector<std::string>;
 using splitted_entries_type=std::vector<std::pair<std::string, std::string>>;
+
+void init_node(int argc , char* argv[]);
+//void init_client(std::string peer_name, int port);
+
+void create_init_directories(fs::path);
+std::string create_new_id(fs::path peer_root_path);
 
 void event_loop();
 args_type parse_input(const std::string& input);
@@ -24,6 +33,7 @@ void handle_input(input_command_type command,const args_type& args);
 void execute_help();
 void execute_store_command(const args_type& args);
 void execute_pwd();
+void execute_quit();
 
 void store_directory(fs::path dir_path);
 void store_file(fs::path file_path);
@@ -31,6 +41,8 @@ void execute_list_files();
 splitted_entries_type split_and_hash_file(fs::path file);
 void store_file(fs::path file_path);
 void create_metadata_file(const splitted_entries_type& splitted_entries,const fs::path& filename);
+
+#endif// INTERFACE_H
 
 /*void handle_get_storage_info(const std::size_t requested_storage){
   using it = fs::recursive_directory_iterator;

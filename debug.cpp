@@ -1,5 +1,9 @@
 #include <vector>
 #include<thread>
+#include<cstdlib>
+#include<fstream>
+#include<system_error>
+
 
 #include<timer.h>
 
@@ -65,3 +69,8 @@ void routing_table_debug(){
   }
 
 }
+
+
+void init(std::string peer_name, int port){
+}
+

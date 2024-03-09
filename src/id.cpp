@@ -33,7 +33,12 @@ ID create_id(std::string str){
 
   return ID{str};
 }
-std::function<bool(const ID& , const ID&)> ID_comparer = []( const ID& id1,  const ID& id2) {
+
+bool ID_comparer::operator()( const ID& id1,  const ID& id2)const {
   return id1.to_ulong() < id2.to_ulong();
-};
 }
+
+//std::function<bool(const ID& , const ID&)> ID_comparer = []( const ID& id1,  const ID& id2) {
+//return id1.to_ulong() < id2.to_ulong();
+//};
+}//namespce kademlia

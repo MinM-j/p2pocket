@@ -10,10 +10,75 @@
 #include<sha1.h>
 #include<networking.h>
 
-kademlia::network::client client{2222, std::string{"1110001100"}};
+void init_node(int argc , char* argv[]){
+  if(argc<3){
+    std::cout<<" expected: port"<<std::endl;
+    exit(1);
+  }
 
+  std::string peer_name=argv[1];
+  int port = std::atoi(argv[2]);
+  std::cout<<"peer: "<<peer_name<<" port: "<<port<<std::endl;
+
+  const fs::path peer_root_path(kademlia::project_path/peer_name);
+
+  create_init_directories(peer_root_path);
+  auto id = create_new_id(peer_root_path);
+
+  const kademlia::endpoint_type boot_node{"127.0.0.1",8848};
+  kademlia::network::client client{port,id};
+
+  std::thread recv_thread{[&](){client.receive();}};
+
+  client.bootstrap(boot_node);
+
+  //client.find_node(boot_node, "11100011" );
+
+  try{
+    event_loop();
+  }catch(int){
+    //recv_thread.join();
+    std::cout<<"quitng"<<std::endl;
+  }
+}
+
+
+
+std::string create_new_id(fs::path peer_root_path){
+  fs::path id_path{ peer_root_path/kademlia::id_file};
+
+  if(fs::exists(id_path)){
+    std::ifstream fptr{id_path};
+    std::string id;
+    fptr>>id;
+    std::cout<<"read id from 'id.dat': "<<id<<std::endl;
+    return id;
+  }
+
+  const std::string id = kademlia::generate_id().to_string();
+  std::ofstream fptr{id_path};
+  fptr << id;
+  std::cout<<"generated new id: "<<id<<std::endl;
+
+  return id;
+}
+
+void create_init_directories(fs::path peer_root_path){
+  const fs::path peer_network_files_path{peer_root_path/"network_data/"};
+  const fs::path peer_filesystem{peer_root_path/"network_fs/"};
+
+  std::cout<<"creating necessary files and dirs"<<std::endl;
+  const fs::path project_path{"./p2pocket/"};
+
+
+  std::error_code ec;
+  bool success;
+
+  success = fs::create_directories(peer_root_path,ec);
+  success = fs::create_directories(peer_network_files_path,ec);
+  success = fs::create_directories(peer_filesystem,ec);
+}
 void event_loop(){
-
   std::string input;
 
   using enum input_command_type;
@@ -23,6 +88,7 @@ void event_loop(){
     {RETRIEVE, "retrieve", 2},
     {LS, "ls", 1},
     {PWD, "pwd", 1},
+    {QUIT, "quit", 1},
   };
   while(1){
     std::cout<<"p2pocket: ";
@@ -82,6 +148,9 @@ void handle_input(input_command_type command, const args_type& args){
     case PWD:
       execute_pwd();
       break;
+    case QUIT:
+      execute_quit();
+      break;
     //"store  file_path or directory_path"
     //client.execute_store_command(args);
     //break;
@@ -93,6 +162,10 @@ void handle_input(input_command_type command, const args_type& args){
       //break;
       std::cout<<"unknown command: "<<args[0]<<std::endl;
   };
+}
+
+void execute_quit(){
+  throw(1);
 }
 //TODO: make all the directories in first initiliazation
 const std::string p2pocket_root_dir{"~/p2pocket/context_1/"};
@@ -177,10 +250,12 @@ void store_file(fs::path file_path){
 
   std::cout<<"total piece: "<<splitted_entries.size()<<std::endl;
   for(const auto& [key,value] : splitted_entries){
+    std::cout<<"total piece: "<<splitted_entries.size()<<std::endl;
     //const auto key = content_entry.first;
     //const auto value = content_entry.second;
 
-    client.store_file(kademlia::ID{key}, value);
+    kademlia::ID id{key};
+    //client.store_file(id, value);
     std::cout<<key<<" "<<value.size()<<std::endl;
   }
 
@@ -209,33 +284,19 @@ splitted_entries_type split_and_hash_file(fs::path file){
     SHA1 hashing;
     hashing.update(data);
     std::string hash=hashing.final();//this is in hex form
-    std::stringstream ss;
-
-    //u<<hash<<std::endl;
     char c;
     c=hash[0];
     int intval = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
 
-    //u<<"c: "<<c<<std::endl;
-    //u<<intval<<std::endl;
 
     intval=intval<<4;
-    //u<<intval<<std::endl;
 
     std::bitset<NO_OF_BIT> id(intval);
     c=hash[1];
     intval =  (c >= 'a') ? (c - 'a' + 10) : (c - '0');
 
-    //u<<"c: "<<c<<std::endl;
-    //u<<intval<<std::endl;
-
     id|=intval;
 
-    //std::cout<<id.to_string()<<std::endl;
-
-
-
-    //std::cout<<std::endl;
 
     //return hash;
     return id.to_string();
@@ -245,7 +306,8 @@ splitted_entries_type split_and_hash_file(fs::path file){
   for(int i = 0; i<no_of_pieces - 1; i++){
     std::string data(PIECE_SIZE, '\0');
     fileptr.read(&data[0], PIECE_SIZE);
-    pieces_content.emplace_back(get_hash(data).c_str(),data.c_str());
+    std::string hash=get_hash(data);
+    pieces_content.emplace_back(hash,data);
   }
 
   //read last piece

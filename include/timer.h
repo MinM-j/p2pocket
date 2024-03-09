@@ -1,3 +1,5 @@
+#ifndef TIMER_H
+#define TIMER_H
 #include <chrono> // for std::chrono functions
 
 namespace kademlia{
@@ -18,3 +20,4 @@ public:
 	
 };
 }//namespace kademlia
+#endif// TIMER_H

@@ -31,6 +31,8 @@ enum class messageType : uint32_t{
   FIND_VALUE_RESPONSE,
 };
 
+std::ostream& operator<<(std::ostream& out, messageType type);
+
 //message header that holds the message type and total bytes of message
 struct messageHeader{
   messageType msg_type;
