@@ -45,6 +45,7 @@ private:
   std::size_t m_bucket_size;
   k_buckets m_k_buckets;
 public: 
+  routing_table();
   routing_table(std::string id);
 
   friend std::ostream& operator<<(std::ostream& out , const routing_table& table);

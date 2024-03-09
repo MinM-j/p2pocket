@@ -27,7 +27,7 @@ void init_node(int argc , char* argv[]);
 void create_init_directories(fs::path);
 std::string create_new_id(fs::path peer_root_path);
 
-void event_loop();
+void event_loop(std::string peer_name);
 args_type parse_input(const std::string& input);
 void handle_input(input_command_type command,const args_type& args);
 void execute_help();

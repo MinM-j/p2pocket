@@ -4,8 +4,9 @@
 
 namespace kademlia{
 namespace storage{
-	std::string find_file_piece(kademlia::ID id);
-	void store_piece(kademlia::message msg);
+std::string find_file_piece(kademlia::ID id);
+void store_piece(kademlia::message msg);
+void store_piece(fs::path peer_path,kademlia::message msg);
 }
 }
 /*
@@ -35,7 +36,7 @@ namespace storage{
 
     auto no_of_pieces = std::ceil(file_size/float(PIECE_SIZE));
 
-    
+
     //std::pair<hash, content>
     std::vector<std::pair<std::string, std::string>> pieces_content;
     pieces_content.reserve(no_of_pieces);
@@ -72,7 +73,7 @@ namespace storage{
 
 
 
-  
+
 
   }
 };

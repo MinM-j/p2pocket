@@ -10,6 +10,10 @@
 #include<sha1.h>
 #include<networking.h>
 
+
+kademlia::network::client client;
+const std::size_t PIECE_SIZE{100};
+
 void init_node(int argc , char* argv[]){
   if(argc<3){
     std::cout<<" expected: port"<<std::endl;
@@ -26,7 +30,8 @@ void init_node(int argc , char* argv[]){
   auto id = create_new_id(peer_root_path);
 
   const kademlia::endpoint_type boot_node{"127.0.0.1",8848};
-  kademlia::network::client client{port,id};
+
+  client.initialize(port,id,peer_root_path);
 
   std::thread recv_thread{[&](){client.receive();}};
 
@@ -35,7 +40,7 @@ void init_node(int argc , char* argv[]){
   //client.find_node(boot_node, "11100011" );
 
   try{
-    event_loop();
+    event_loop(peer_name);
   }catch(int){
     //recv_thread.join();
     std::cout<<"quitng"<<std::endl;
@@ -64,12 +69,10 @@ std::string create_new_id(fs::path peer_root_path){
 }
 
 void create_init_directories(fs::path peer_root_path){
-  const fs::path peer_network_files_path{peer_root_path/"network_data/"};
-  const fs::path peer_filesystem{peer_root_path/"network_fs/"};
+  const fs::path peer_network_files_path{peer_root_path/kademlia::network_data_dir};
+  const fs::path peer_filesystem{peer_root_path/kademlia::network_fs_dir};
 
   std::cout<<"creating necessary files and dirs"<<std::endl;
-  const fs::path project_path{"./p2pocket/"};
-
 
   std::error_code ec;
   bool success;
@@ -78,7 +81,7 @@ void create_init_directories(fs::path peer_root_path){
   success = fs::create_directories(peer_network_files_path,ec);
   success = fs::create_directories(peer_filesystem,ec);
 }
-void event_loop(){
+void event_loop(std::string peer_name){
   std::string input;
 
   using enum input_command_type;
@@ -91,7 +94,7 @@ void event_loop(){
     {QUIT, "quit", 1},
   };
   while(1){
-    std::cout<<"p2pocket: ";
+    std::cout<<"p2pocket["<<peer_name<<"]: ";
     //std::cin>>input;
     std::getline(std::cin, input);
     if(input.empty())
@@ -151,8 +154,6 @@ void handle_input(input_command_type command, const args_type& args){
     case QUIT:
       execute_quit();
       break;
-    //"store  file_path or directory_path"
-    //client.execute_store_command(args);
     //break;
     case RETRIEVE:
     //execute_retrieve();
@@ -167,11 +168,7 @@ void handle_input(input_command_type command, const args_type& args){
 void execute_quit(){
   throw(1);
 }
-//TODO: make all the directories in first initiliazation
-const std::string p2pocket_root_dir{"~/p2pocket/context_1/"};
-//data
-//filesystem
-const std::size_t PIECE_SIZE{100};
+
 
 void execute_pwd(){
   std::cout<<fs::current_path()<<std::endl;
@@ -188,9 +185,9 @@ void execute_help(){
 }
 
 void execute_list_files(){
-  std::cout<<"Iterating dir: "<<p2pocket_root_dir<<std::endl;
+  std::cout<<"Iterating dir: "<<client.root_path<<std::endl;
   std::string command{"tree "};
-  command += p2pocket_root_dir;
+  command += client.root_path;
   //TODO: write our own ls code?
   std::system(command.c_str());
   //  for(const auto& dir_entry: fs::directory_iterator(p2pocket_root_dir)){
@@ -206,11 +203,17 @@ void execute_list_files(){
  */
 
 void execute_store_command(const args_type& args){
-  //TODO: iterate through all args(paths)
+  //TODO: IMP: iterate through all args(paths)
+  //TODO: IMP: encryption
+  //TODO: IMP: set storage limit
+  //TODO: IMP: filter self id so that not to send req to self
+  //TODO: persist ID(done) and routing table
+  //TODO: broadcast ip change
   const auto& file_or_dir_path=args[1];
   //not though about absolute or relative path
   //since no idea what will be the cwd used by fs::exists in case of relative path?
   // make the path relative to the cwd?
+
   if(!fs::exists(file_or_dir_path)){
     throw std::invalid_argument("invalid file or directory path: "+file_or_dir_path);// may not work without c_str()
   }
@@ -250,15 +253,11 @@ void store_file(fs::path file_path){
 
   std::cout<<"total piece: "<<splitted_entries.size()<<std::endl;
   for(const auto& [key,value] : splitted_entries){
-    std::cout<<"total piece: "<<splitted_entries.size()<<std::endl;
-    //const auto key = content_entry.first;
-    //const auto value = content_entry.second;
-
     kademlia::ID id{key};
     //client.store_file(id, value);
     std::cout<<key<<" "<<value.size()<<std::endl;
+    client.store_file(id,value);
   }
-
   //TODO: store the file
 
 
@@ -326,11 +325,8 @@ splitted_entries_type split_and_hash_file(fs::path file){
 }
 void create_metadata_file(const splitted_entries_type& splitted_entries,const fs::path& filename){
   //TODO: store storing_nodes id
-  fs::path metadata_path{p2pocket_root_dir/filename};
+  fs::path metadata_path{client.root_path/filename};
 
-  std::ofstream fptr{p2pocket_root_dir/fs::path{"hhhh.hhh"}};
-  fptr<<"fuck you";
-  fptr.close();
   std::ofstream metadata_file{metadata_path};
 
   if(metadata_file.is_open())

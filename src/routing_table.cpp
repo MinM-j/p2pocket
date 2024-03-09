@@ -33,9 +33,12 @@ routing_table::routing_table(std::string id)
   m_bucket_size= CURRENT_BUCKET_SIZE;
 }
 
+routing_table::routing_table()=default;
+
 std::ostream& operator<<(std::ostream& out , const routing_table& table){
   //out<< "self: "<< table.m_self_id.to_string()<<std::endl;
   //for(const auto& bucket: table.m_k_buckets){
+  out<<std::endl;
   for(int i = 0; i< table.m_k_buckets.size(); i++){
     if(table.m_k_buckets[i].empty())
       continue;
@@ -45,6 +48,7 @@ std::ostream& operator<<(std::ostream& out , const routing_table& table){
     }
     out<<"]"<<std::endl;
   }
+  out<<std::endl;
   return out;
 }
 
@@ -78,10 +82,10 @@ routing_table::k_bucket  routing_table::find_node(kademlia::ID node_id){
 
   std::vector<value_type> all_nodes;
 
-  std::cout<<"total nodes find_node: "<<all_nodes.size()<<std::endl;
+  std::cout<<"total_nodes find_node: "<<all_nodes.size()<<std::endl;
   for(auto k_bucket: m_k_buckets){
     for (auto node: k_bucket){
-      all_nodes.push_back(node);
+        all_nodes.push_back(node);
     }
   }
 

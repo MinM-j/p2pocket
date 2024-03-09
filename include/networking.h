@@ -46,8 +46,11 @@ public:
 
   using nodes_tracker_type=std::map<ID, peer_request_info, kademlia::ID_comparer>;
 
+  client();
   client(const uint16_t port, std::string self_id);
   ~client();
+  void initialize(const uint16_t port, std::string id,fs::path peer_root_path);
+
   void receive();
   void send(const std::pair<std::string, uint16_t> endpoint, kademlia::message& msg);
 
@@ -77,18 +80,20 @@ private:
 
   friend std::ostream& operator<<(std::ostream& out,const kademlia::endpoint_type& ep);
   friend std::ostream& operator<<(std::ostream& out , const kademlia::routing_table::k_bucket& table);
-//void send_find_id_request(endpoint_type endpoint, kademlia::ID node_id);
+  //void send_find_id_request(endpoint_type endpoint, kademlia::ID node_id);
 
 private:
-uint16_t PORT;
-kademlia::ID self_id;
-asio::io_context io_context;
-asio::ip::udp::socket socket{io_context};
-std::array<char, 100*1024> recv_buffer;
-asio::ip::udp::endpoint remote_endpoint;
+  uint16_t PORT;
+  kademlia::ID self_id;
+  asio::io_context io_context;
+  asio::ip::udp::socket socket{io_context};
+  std::array<char, 100*1024> recv_buffer;
+  asio::ip::udp::endpoint remote_endpoint;
   //TODO: can't have multiple responses from same node?
-std::map<kademlia::ID,kademlia::message, kademlia::ID_comparer> responses;
-kademlia::routing_table routing_table;
+  std::map<kademlia::ID,kademlia::message, kademlia::ID_comparer> responses;
+  kademlia::routing_table routing_table;
+public:
+  fs::path root_path;
 };
 }
 }

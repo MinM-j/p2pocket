@@ -28,9 +28,23 @@ std::ostream& operator<<(std::ostream& out , const kademlia::routing_table::k_bu
   out<<"]"<<std::endl;
   return out;
 }
-client::client(const uint16_t port, std::string id) : PORT{port}, self_id{id}, routing_table{id}{
+
+client::client()=default;
+client::client(const uint16_t port, std::string id):
+  PORT{port},
+  self_id{id},
+  routing_table{id}{
   socket.open(asio::ip::udp::v4());
-  std::cout<<"port: "<<PORT<<std::endl;
+  socket.bind(asio::ip::udp::endpoint(asio::ip::address::from_string(IPADDRESS), PORT));
+}
+
+void client::initialize(const uint16_t port, std::string id,fs::path peer_root_path){
+  this->self_id=ID{id};
+  this->PORT=port;
+  this->routing_table=kademlia::routing_table{id};
+  this->root_path=peer_root_path;
+
+  socket.open(asio::ip::udp::v4());
   socket.bind(asio::ip::udp::endpoint(asio::ip::address::from_string(IPADDRESS), PORT));
 }
 
@@ -53,11 +67,8 @@ void client::handle_receive(const system::error_code& error, size_t bytes_tranfe
     return;
   }
 
-  //std::cout << "\n\nData received from(" << remote_endpoint.address() << ":" << remote_endpoint.port() << ") byte received: " << bytes_tranferred <<"\n\n";
 
   std::string data(recv_buffer.begin(), recv_buffer.begin()+bytes_tranferred);
-  std::cout << data << std::endl;
-  std::cout << "\n\n Bytes receive : " << bytes_tranferred << "\n\n"<<std::endl;
 
 
   std::stringstream stream_data;
@@ -69,6 +80,10 @@ void client::handle_receive(const system::error_code& error, size_t bytes_tranfe
     boost::archive::binary_iarchive ia(stream_data);
     ia >> msg;
   }
+
+  std::cout<<"\n================================================================"<<std::endl;
+  std::cout << "\nBytes received:" << bytes_tranferred <<"from "<<remote_endpoint<<std::endl;
+  std::cout<< "msg_type "<<msg.header.msg_type<< "\n"<<std::endl;
 
   endpoint_type endpoint(remote_endpoint.address().to_string(),remote_endpoint.port());
 
@@ -167,7 +182,7 @@ void client::handle_store_request(const endpoint_type endpoint,message msg){
   routing_table.handle_communication(msg.header.self_id, endpoint);
 
   try{
-    storage::store_piece(msg);
+    storage::store_piece(this->root_path,msg);
     response<<"success";
   }catch(...){
     response<<"error";
@@ -177,7 +192,7 @@ void client::handle_store_request(const endpoint_type endpoint,message msg){
 }
 
 void client::handle_find_node_request(const endpoint_type endpoint,message msg){
-  std::cout<<"received 'find_node' request from "<<endpoint<<"["<<msg.header.self_id<<"]"<<std::endl;
+  std::cout<<"received 'find_node' request from "<<endpoint <<std::endl;
   ID node_to_find;
   msg >> node_to_find;
 
@@ -220,7 +235,6 @@ void client::store_file(ID file_hash, std::string content){
    * sort the results by nearest to the file_hash
    * send store_request to the `n` nearest nodes
   */
-
   routing_table::k_bucket closest_nodes = routing_table.find_node(file_hash);
 
   //of course there will be no node with give id
@@ -228,7 +242,6 @@ void client::store_file(ID file_hash, std::string content){
   if(routing_table::is_node_in_bucket(closest_nodes, file_hash)){
     throw("Id clash. It should not have happened. Never. Incendies.");
   }
-
 
   if(closest_nodes.empty()){
     std::cout<<"error"<<std::endl;
@@ -246,8 +259,9 @@ void client::store_file(ID file_hash, std::string content){
   find_id_recursively(closest_nodes_tracker, file_hash);
 
   std::vector<routing_table::value_type> candidate_peers;
+
   for(const auto& [id, node_status]: closest_nodes_tracker){
-    if(node_status.status==REQUEST_RECEIVED)
+    if(node_status.status==REQUEST_RECEIVED && id != this->self_id)
       candidate_peers.emplace_back(id, node_status.endpoint);
   }
 
@@ -258,36 +272,44 @@ void client::store_file(ID file_hash, std::string content){
             return (file_hash ^ lhs.first).to_ulong()<  (file_hash ^ rhs.first).to_ulong();
             });
 
+  std::cout<<"total nodes found for piece("<<file_hash<<"): "<<candidate_peers.size()<<std::endl;
+  std::cout<<"[";
+  for(auto peer : candidate_peers)
+  std::cout<<peer.second.second<<", ";
+  std::cout<<"]\n";
   //now send store request
   //TODO
+
+  auto no_of_nodes=std::min(kademlia::replica_count,static_cast<int>(candidate_peers.size()));
+  std::for_each(candidate_peers.begin(), std::next(candidate_peers.begin(),no_of_nodes),
+                [&](auto candidate){
+                auto endpoint = candidate.second;
+                send_store_request(endpoint, file_hash, content);
+                });
+  //view response and do accordingly TODO: IMP
 }
+
 
 //call this function when we don't expect `node_id`|`value_id` to be found
 void client::find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kademlia::ID id_to_find){
 
   while(1){
-    std::cout<<"top "<<closest_nodes_tracker.size()<<std::endl;
     bool node_query_completed=true;
     for( auto& [id, node_status]: closest_nodes_tracker){
       switch(node_status.status){
         case NO_ACTION:
-          std::cout<<"no action"<<std::endl;
           send_find_node_request(node_status.endpoint, id_to_find);
           node_status.status=REQUEST_SENT;
           node_query_completed=false;
           break;
         case REQUEST_RECEIVED:
         case REQUEST_TIMEOUT:
-          std::cout<<"received or timeour"<<std::endl;
           break;
         case REQUEST_SENT:
-          std::cout<<"req sent"<<std::endl;
           auto it = responses.find(id);
-          std::cout<<"req sent"<<std::endl;
-          std::cout<<"req sent"<<std::endl;
           if(it==responses.end()){
-            std::cout<<"no responses found"<<std::endl;
             if(node_status.timer.elapsed()>TIMEOUT_LIMIT){
+              std::cout<<"timing out "<< id <<":"<<node_status.endpoint<<std::endl;
               node_status.status = REQUEST_TIMEOUT;
               continue;
               //TODO: find a way to remove responses of terminated request from `responses`
@@ -298,7 +320,6 @@ void client::find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kade
             continue;
           }
 
-          std::cout<<"response received"<<std::endl;
           auto message = it->second;
           if(message.header.msg_type!=messageType::FIND_NODE_RESPONSE){
             continue;
@@ -322,6 +343,7 @@ void client::find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kade
     if(node_query_completed)
       break;
   }
+
 }
 
 
@@ -361,17 +383,13 @@ void client::bootstrap(kademlia::endpoint_type boot_ep){
   nodes_tracker_type new_nodes_tracker;
   std::cout<<"nodes from bootstrapping node: "<<kb<<std::endl;
 
+  //to prevent resendig request oto bootstrap node
+  new_nodes_tracker.insert({bootstrap_id, peer_request_info{ boot_ep, REQUEST_RECEIVED, timer{}}});
   for(auto [id, endpoint]: kb){
-    std::cout<<"BBBBBB"<<std::endl;
     new_nodes_tracker.insert({id, peer_request_info{ endpoint, NO_ACTION, timer{}}});
   }
-  std::cout<<"BBBBBB"<<std::endl;
 
   find_id_recursively(new_nodes_tracker,this->self_id);
-  std::cout<<"DEBUG"<<std::endl;
-  std::cout<<"total new nodes(bootstrap): "<<new_nodes_tracker.size()<<std::endl;
-  std::cout<<"DEBUG"<<std::endl;
-
 
   for(const auto& [id, node_status]: new_nodes_tracker){
     //insert all nodes irrespective of status? 
@@ -390,6 +408,8 @@ void client::bootstrap(kademlia::endpoint_type boot_ep){
     }
   }
 
+  std::cout<<"find_nodes process completed"<<std::endl;
+  std::cout<<"total new nodes(bootstrap): "<<new_nodes_tracker.size()<<std::endl;
 }
 
 

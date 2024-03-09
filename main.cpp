@@ -7,6 +7,8 @@
 #include<debug.h>
 using namespace std;
 
+
+
 int main(int argc, char* argv[]){
   //timer_debug();
 
