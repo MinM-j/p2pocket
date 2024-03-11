@@ -26,9 +26,11 @@ const std::string IPADDRESS = "127.0.0.1";
 const double TIMEOUT_LIMIT=3; //in seconds
 
 std::ostream& operator<<(std::ostream& out, const kademlia::routing_table::k_bucket& kb);
+std::istream& operator<<(std::istream& in, kademlia::endpoint_type& ep);
 
 namespace kademlia{
 namespace network{
+//std::istream& operator<<(std::istream& in, kademlia::endpoint_type& ep);
 class client{
 public:
   enum peer_status{
@@ -46,8 +48,7 @@ public:
 
   using nodes_tracker_type=std::map<ID, peer_request_info, kademlia::ID_comparer>;
 
-  using wait_response_type = std::pair<ID, message>;
-  using wait_responses_type= std::vector<wait_response_type>;
+  using wait_response_type = std::pair<kademlia::routing_table::value_type, message>; using wait_responses_type= std::vector<wait_response_type>;
 
   client();
   client(const uint16_t port, std::string self_id);
@@ -63,12 +64,12 @@ public:
   void send_find_node_request(endpoint_type endpoint, kademlia::ID node_id);
 
 
-  void find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kademlia::ID id_to_find);
+  void find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kademlia::ID id_to_find,bool find_endpoint=false);
   void bootstrap(kademlia::endpoint_type boot_ep);
 
   //change name to .*_piece
-  std::vector<kademlia::ID> store_file(kademlia::ID file_hash, std::string content);
-  std::string retrieve_file(kademlia::ID piece_hash, const std::vector<kademlia::ID>& storing_nodes);
+  std::vector<kademlia::routing_table::value_type> store_file(kademlia::ID file_hash, std::string content);
+  std::string retrieve_file(kademlia::ID piece_hash, const std::vector<kademlia::routing_table::value_type>& storing_nodes);
 
   wait_responses_type wait_for_responses(nodes_tracker_type& nodes_tracker,kademlia::messageType msg_type);
   kademlia::message wait_response(kademlia::ID id, kademlia::messageType msg_type, double wait_time=3);

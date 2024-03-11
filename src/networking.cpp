@@ -16,8 +16,16 @@ namespace kademlia{
 namespace network{
 using namespace kademlia;
 std::ostream& operator<<(std::ostream& out,const kademlia::endpoint_type& ep){
-  out<< ep.first<<":"<<ep.second<<std::endl;
+  out<< ep.first<<":"<<ep.second;
   return out;
+}
+
+std::istream& operator<<(std::istream& in, kademlia::endpoint_type& ep){
+  std::getline(in, ep.first, ':');
+  in>>ep.second;
+
+  std::cout<<ep<<std::endl;
+  return in;
 }
 
 std::ostream& operator<<(std::ostream& out , const kademlia::routing_table::k_bucket& table){
@@ -123,6 +131,9 @@ void client::send(const std::pair<std::string, uint16_t> endpoint,message& msg){
     data = stream_data.str();
   }
   auto sent = socket.send_to(asio::buffer(data), receiver_endpoint, 0, send_error);
+  if(sent<0){
+    std::cout<<"error(send): "<<send_error.message()<<std::endl;
+  }
   std::cout << sent << " bytes sent to(" << receiver_endpoint.address() << ":" << receiver_endpoint.port() << ")\n";
   std::cout<<"msg_type: "<<msg.header.msg_type<<std::endl<<std::endl;
 
@@ -156,7 +167,9 @@ void client::send_find_id_request(endpoint_type endpoint, ID node_id){
 void client::send_find_value_request(endpoint_type endpoint, ID piece_id){
   message request{messageType::FIND_VALUE, self_id};
   request<<piece_id;
+  std::cout<<"ep: "<<endpoint<<std::endl;
 
+  std::cout<<"ETST"<<std::endl;
   send(endpoint, request);
 }
 
@@ -218,7 +231,7 @@ void client::handle_find_value_request(const endpoint_type endpoint,message msg)
   msg>>piece_id;
 
   routing_table.handle_communication(msg.header.self_id, endpoint);
-  std::string content =storage::find_file_piece(piece_id);
+  std::string content =storage::find_file_piece(this->root_path,piece_id);
 
   message response{messageType::FIND_VALUE_RESPONSE,self_id};
 
@@ -231,7 +244,7 @@ void client::handle_find_value_request(const endpoint_type endpoint,message msg)
 }
 
 constexpr int replication_value = 4;
-std::vector<kademlia::ID> client::store_file(ID file_hash, std::string content){
+std::vector<kademlia::routing_table::value_type> client::store_file(ID file_hash, std::string content){
   /*
    * find all the closest nodes to the file_hash present in the routing table 
    * send find_node request to current closest nodes
@@ -293,13 +306,13 @@ std::vector<kademlia::ID> client::store_file(ID file_hash, std::string content){
   wait_responses_type storing_node_responses = wait_for_responses(storing_nodes_tracker,messageType::STORE_RESPONSE);
   //view response and do accordingly TODO: IMP
 
-  std::vector<kademlia::ID> storing_nodes;
+  std::vector<kademlia::routing_table::value_type> storing_nodes;
   for(auto [storing_node, response]: storing_node_responses){
     std::string msg; //success or error
     response>>msg;
     std::cout<<"msg: "<<msg<<std::endl;
     if(msg!="success"){
-      std::cout<<"failed to store "<<file_hash << " in node "<<storing_node<<std::endl;
+      std::cout<<"failed to store "<<file_hash << " in node "<<storing_node.second<<std::endl;
     }
     storing_nodes.push_back(storing_node);
     //std::cout<<"id: "<<id<<" message: "<<msg<<std::endl;
@@ -348,7 +361,7 @@ client::wait_responses_type client::wait_for_responses(nodes_tracker_type& nodes
 
           responses.erase(it);
           std::cout<<"msg type: "<<message.header.msg_type<<std::endl;
-          responses_vec.emplace_back(id, message);
+          responses_vec.emplace_back(std::make_pair(id,node_status.endpoint), message);
           break;
       }
     }
@@ -361,8 +374,7 @@ client::wait_responses_type client::wait_for_responses(nodes_tracker_type& nodes
 }
 
 //call this function when we don't expect `node_id`|`value_id` to be found
-void client::find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kademlia::ID id_to_find){
-
+void client::find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kademlia::ID id_to_find, bool find_endpoint){
   while(1){
     bool node_query_completed=true;
     for( auto& [id, node_status]: closest_nodes_tracker){
@@ -517,7 +529,33 @@ kademlia::message client::wait_response(kademlia::ID id, kademlia::messageType m
   throw(1);
 }
 
-std::string retrieve_file(kademlia::ID piece_hash, const std::vector<kademlia::ID>& storing_nodes){
+std::string client::retrieve_file(kademlia::ID piece_hash, const std::vector<kademlia::routing_table::value_type>& storing_nodes){
+
+  nodes_tracker_type storing_nodes_tracker;
+
+  std::cout<<"TEST"<<std::endl;
+
+  for(const auto& [storing_node_id , endpoint]: storing_nodes){
+    send_find_value_request(endpoint, piece_hash);
+    storing_nodes_tracker.insert({storing_node_id,{endpoint, REQUEST_SENT, timer{}}});
+  }
+
+  wait_responses_type storing_node_responses = wait_for_responses(storing_nodes_tracker,messageType::FIND_VALUE_RESPONSE);
+
+  for(auto [storing_node, response]: storing_node_responses){
+    std::string content;
+    response>>content;
+
+    std::cout<<"RECEIVED CONTENT from " <<storing_node.second<< " SIZE: "<<content.size()<<std::endl;
+    if(content.empty()){
+      continue;
+    }
+    else 
+    //check hash from content 
+    return content;
+  }
+  std::cout<<"couldn't receive valid content from any storing node for piece "<<piece_hash<<std::endl;
+  throw(1);
 }
 }//namespace network
 }//namespace kademlia

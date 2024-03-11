@@ -15,15 +15,10 @@ int main(int argc, char* argv[]){
 
   //routing_table_debug();
 
-  //init_node(argc, argv);
+  init_node(argc, argv);
 
-  std::string src{"hello world"};
+  //std::string src{"hello world"};
 
-  crypto_init(kademlia::project_path / "test_encryption");
-  auto cipher= encrypt(src);
-  auto decipher = decrypt(cipher);
-  std::cout<<cipher<<std::endl
-    << decipher<<std::endl;
   //client_debug();
   //event_loop();
   return 0;

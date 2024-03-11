@@ -97,7 +97,6 @@ std::string generate_random_byte(size_t no_of_byte){
     sstream << static_cast<char>(byte);
 
   }
-
   return sstream.str();
 }
 

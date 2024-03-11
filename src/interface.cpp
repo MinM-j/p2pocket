@@ -11,13 +11,13 @@
 #include<sha1.h>
 #include<networking.h>
 
-
 kademlia::network::client client;
 const std::size_t PIECE_SIZE{100};
 
 fs::path peer_root_path;
-fs::path network_files_path;
-fs::path network_filesystem;
+fs::path network_files_path; //stored files of network
+fs::path network_filesystem; //metadata
+fs::path retrieved_data_path; //retrieved data
 
 void init_node(int argc , char* argv[]){
   if(argc<3){
@@ -76,6 +76,8 @@ std::string create_new_id(fs::path peer_root_path){
 void create_init_directories(fs::path peer_root_path){
   network_files_path = peer_root_path/kademlia::network_data_dir;
   network_filesystem = peer_root_path/kademlia::network_fs_dir;
+  retrieved_data_path = peer_root_path/kademlia::data_dir;
+
 
   std::cout<<"creating necessary files and dirs"<<std::endl;
 
@@ -85,6 +87,8 @@ void create_init_directories(fs::path peer_root_path){
   success = fs::create_directories(peer_root_path,ec);
   success = fs::create_directories(network_files_path,ec);
   success = fs::create_directories(network_filesystem,ec);
+  success = fs::create_directories(retrieved_data_path,ec);
+
 }
 void event_loop(std::string peer_name){
   std::string input;
@@ -215,9 +219,10 @@ void execute_list_files(){
 
 void execute_store_command(const args_type& args){
   //TODO: IMP: cannot close and start node again
+  //TODO: IMP: bootstrapping node not storing file
   //TODO: IMP:directory name in each recursion
   //TODO: IMP: iterate through all args(paths)
-  //TODO: IMP: encryption
+  //TODO: IMP: encryption(done)
   //TODO: IMP: set storage limit
   //TODO: IMP: filter self id so that not to send req to self
   //TODO: persist ID(done) and routing table
@@ -266,7 +271,7 @@ void store_file(fs::path file_path){
   std::cout<<"storing file: "<<file_path<<std::endl;
   std::cout<<"total piece: "<<splitted_entries.size()<<std::endl;
 
-  std::vector<std::pair<kademlia::ID, std::vector<kademlia::ID >>> all_storing_nodes;
+  std::vector<std::pair<kademlia::ID, std::vector<kademlia::routing_table::value_type>>> all_storing_nodes;
 
   std::cout<<"=========================================="<<std::endl;
   std::cout<<"=========================================="<<std::endl;
@@ -289,8 +294,9 @@ void store_file(fs::path file_path){
 
   for(const auto& [piece_hash, storing_nodes] : all_storing_nodes){
     metadata_file<<piece_hash;
-    for( auto storing_node: storing_nodes )
-    metadata_file<<" "<<storing_node;
+    for( auto [node_id, node_endpoint]: storing_nodes ){
+      metadata_file<<" "<<node_id<<" "<<node_endpoint;
+    }
     metadata_file<<"\n";
   }
 
@@ -427,22 +433,21 @@ void retrieve_directory(fs::path dir_path){
 
 
 void retrieve_file(fs::path file_path){
-  /*
   std::cout<<"retrieving file: "<<file_path<<std::endl;
 
   std::ifstream metadata_file{file_path};
   std::string line;
   std::vector<std::string> pieces_metadata;
   while(std::getline(metadata_file, line)){
-    piece_hashes.push_back(line);
+    pieces_metadata.push_back(line);
   }
 
   std::cout<<"total pieces: "<<pieces_metadata.size()<<std::endl;
   std::cout<<"piece hashes: \n";
 
-  std::vector<std::pair<kademlia::ID, std::vector<kademlia::ID>>> all_storing_nodes;
+  std::vector<std::pair<kademlia::ID, std::vector<kademlia::routing_table::value_type>>> all_storing_nodes;
   for(const auto& piece_metadata: pieces_metadata){
-    std::vector<kademlia::ID> storing_nodes;
+    std::vector<kademlia::routing_table::value_type> storing_nodes;
     std::stringstream sstream;
     sstream<< piece_metadata;
     std::string id;
@@ -450,16 +455,36 @@ void retrieve_file(fs::path file_path){
     sstream>>id;//piece_id
     kademlia::ID piece_id{id};
 
-    while(sstream)
+    kademlia::endpoint_type ep;
+    //std::cout<<"storing nodes: "<<std::endl;
+    while(sstream>>id && sstream>>ep){
+      storing_nodes.emplace_back(id, ep);
+      //std::cout<<id<<" " <<ep<<std::endl;
+    }
 
-
-
+    all_storing_nodes.emplace_back(piece_id, storing_nodes);
     //std::cout<<e<<std::endl;
   }
 
-  client.retrieve_file()
+  std::stringstream content_stream;
+  try{
+    for(const auto& [piece_hash, storing_nodes] : all_storing_nodes){
+      std::string content = client.retrieve_file(piece_hash, storing_nodes);
+      content_stream<<content;
+    }
+  }
+  catch(int){
+  }
 
-  /*
+  fs::path dest_path{retrieved_data_path/file_path.filename()};
+  std::ofstream fptr{dest_path};
+  fptr<<content_stream.rdbuf();
+  std::cout<<"retrieved data in file: "<<dest_path<<std::endl;
+  //content_stream << content;
+}
+
+
+/*
     std::shared_ptr<std::map<std::string,std::string>> piece_contents = std::make_shared<std::map<std::string,std::string>>();
 
     for(const std::string hash: piece_hashes){
@@ -505,4 +530,3 @@ void retrieve_file(fs::path file_path){
     session.async_load( hash, std::move( on_load ) );
     }
     */
-}

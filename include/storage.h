@@ -4,9 +4,9 @@
 
 namespace kademlia{
 namespace storage{
-std::string find_file_piece(kademlia::ID id);
 void store_piece(kademlia::message msg);
 void store_piece(fs::path peer_path,kademlia::message msg);
+std::string find_file_piece(fs::path peer_root_path,kademlia::ID id);
 }
 }
 /*
