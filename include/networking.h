@@ -48,12 +48,13 @@ public:
 
   using nodes_tracker_type=std::map<ID, peer_request_info, kademlia::ID_comparer>;
 
-  using wait_response_type = std::pair<kademlia::routing_table::value_type, message>; using wait_responses_type= std::vector<wait_response_type>;
+  using wait_response_type = std::pair<kademlia::routing_table::value_type, message>; 
+  using wait_responses_type= std::vector<wait_response_type>;
 
   client();
   client(const uint16_t port, std::string self_id);
   ~client();
-  void initialize(const uint16_t port, std::string id,fs::path peer_root_path);
+  void initialize(const uint16_t port, std::string id,fs::path peer_root_path,bool log=false);
 
   void receive();
   void send(const std::pair<std::string, uint16_t> endpoint, kademlia::message& msg);
@@ -91,7 +92,10 @@ private:
   friend std::ostream& operator<<(std::ostream& out , const kademlia::routing_table::k_bucket& table);
   //void send_find_id_request(endpoint_type endpoint, kademlia::ID node_id);
 
+  bool off_log_byte();
+  void set_log_byte(bool log_byte);
 private:
+  bool log_byte_info{false};
   uint16_t PORT;
   kademlia::ID self_id;
   asio::io_context io_context;

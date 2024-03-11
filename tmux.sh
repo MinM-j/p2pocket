@@ -20,6 +20,8 @@ tmux select-pane -t 0
 tmux split-window -v
 tmux send-keys "cls && sleep 3 && ./Minor peer3 3333" C-m
 
+tmux select-pane -t 1
+
 #===========================================#
 #tmux new-window 
 #tmux send-keys "cls && sleep 1 && ./Minor peer4 4444" C-m

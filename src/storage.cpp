@@ -7,7 +7,7 @@ std::string kademlia::storage::find_file_piece(fs::path peer_root_path,kademlia:
   if(fs::exists(piece_path)){
     std::ifstream fptr{piece_path};
     std::string content( (std::istreambuf_iterator<char>(fptr)),
-                         (std::istreambuf_iterator<char>()    ));
+                        (std::istreambuf_iterator<char>()    ));
 
     return content;
   }
@@ -27,7 +27,11 @@ void kademlia::storage::store_piece(fs::path peer_path,kademlia::message msg){
   fs::path network_data_path{peer_path/kademlia::network_data_dir};
   std::cout<<"storing file "<<hash<<" in "<<network_data_path<<std::endl;
 
-  std::ofstream fileptr{network_data_path/hash.to_string()};
+  fs::path piece_path{network_data_path/hash.to_string()};
+  std::ofstream fileptr{piece_path};
+  if(!fileptr.is_open()){
+    std::cout<<"file is not open"<<piece_path<<std::endl;
+  }
   fileptr <<content;
   fileptr.close();
 }

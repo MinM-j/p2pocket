@@ -17,7 +17,6 @@ void crypto_init(fs::path peer_root_path){
     buffer << file.rdbuf();
     file.close();
     std::string file_data{buffer.str()};
-    std::cout<<file_data.size()<<std::endl;
 
     encryption_key.assign(file_data.substr(0, encryption_key_size));
     conjunction_key.assign(file_data.substr(encryption_key_size + 1));
@@ -27,15 +26,14 @@ void crypto_init(fs::path peer_root_path){
     fs::create_directories(peer_root_path);
     std::cout<<" creating file for encrption keys: "<<encryption_key_file_path<<std::endl;
     std::ofstream file{encryption_key_file_path};
-    std::cout<<"file open? "<<std::boolalpha<<file.is_open()<<std::endl;
     if(!file.is_open()){
       std::cout<<"file not open"<<std::endl;
     }
     encryption_key = generate_random_byte(encryption_key_size);
     conjunction_key = generate_random_byte(conjunction_key_size);
 
-    std::cout<<"encryption key "<<encryption_key.size()<<std::endl;
-    std::cout<<"conjunction key "<<conjunction_key.size()<<std::endl;
+    //std::cout<<"encryption key "<<encryption_key.size()<<std::endl;
+    //std::cout<<"conjunction key "<<conjunction_key.size()<<std::endl;
 
     file << encryption_key << conjunction_key;
     file.close();

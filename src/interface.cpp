@@ -37,7 +37,7 @@ void init_node(int argc , char* argv[]){
   crypto_init(peer_root_path);
   auto id = create_new_id(peer_root_path);
 
-  const kademlia::endpoint_type boot_node{"127.0.0.1",8848};
+  const kademlia::endpoint_type boot_node{"127.0.0.1",kademlia::boot_port};
 
   client.initialize(port,id,peer_root_path);
 
@@ -116,8 +116,10 @@ void event_loop(std::string peer_name){
 
     auto& input_command_str=args[0];
 
+    bool command_handled=false;
     for(const auto& [command, curr_command_string, required_args_count]: commands){
       if(input_command_str == curr_command_string){
+        command_handled=true;
         try{
           if(args.size() < required_args_count)
             throw std::invalid_argument{"incomplete arguments."};
@@ -132,6 +134,8 @@ void event_loop(std::string peer_name){
         break;
       }
     }
+    if(!command_handled)
+      execute_help();
     std::cout<<std::endl;
   }
 }
@@ -221,15 +225,21 @@ void execute_list_files(){
  */
 
 void execute_store_command(const args_type& args){
+  //TODO: IMP: frequent crash automatically 
   //TODO: IMP: cannot close and start node again
-  //TODO: IMP: bootstrapping node not storing file
-  //TODO: IMP: directory name in each recursion
+  //TODO: IMP: directory name in each recursion (store directory)
+  //======================
   //TODO: IMP: iterate through all args(paths)
-  //TODO: IMP: encryption(done)
+  //TODO: IMP: handle ID clash 
   //TODO: IMP: set storage limit
   //TODO: IMP: filter self id so that not to send req to self
   //TODO: persist ID(done) and routing table
   //TODO: broadcast ip change
+  //======================
+  //TODO: IMP: change ID size(done)
+  //TODO: IMP: bootstrapping node not storing file(done)
+  //TODO: IMP: encryption(done)
+
   const auto& file_or_dir_path=args[1];
   //not though about absolute or relative path
   //since no idea what will be the cwd used by fs::exists in case of relative path?
@@ -276,26 +286,16 @@ void store_file(fs::path file_path){
 
   std::vector<std::pair<kademlia::ID, std::vector<kademlia::routing_table::value_type>>> all_storing_nodes;
 
-  std::cout<<"=========================================="<<std::endl;
-  std::cout<<"=========================================="<<std::endl;
-  std::cout<<"=========================================="<<std::endl;
-
-  std::cout<<"storing piece: "<<std::endl;
-
-  for(const auto& [key,value] : splitted_entries)
-  std::cout<<"size "<<value.size()<<std::endl;
-
   for(const auto& [key,value] : splitted_entries){
     kademlia::ID id{key};
     //client.store_file(id, value);
-    std::cout<<key<<" size: "<<value.size()<<std::endl;
+    //std::cout<<key<<" size: "<<value.size()<<std::endl;
     auto response = client.store_file(id,value);
+    std::cout<<"storingnodes: "<<response.size();
     //store_responses.emplace_back(key, store_responses)
     all_storing_nodes.emplace_back(key, response);
   }
 
-  std::cout<<"=========================================="<<std::endl;
-  std::cout<<"=========================================="<<std::endl;
   std::cout<<"=========================================="<<std::endl;
 
   //TO create a metadata file we need all the piece hash, and corresponding storing nodes.
@@ -320,13 +320,12 @@ splitted_entries_type encrypt_split_and_hash_file(fs::path file){
   std::stringstream sstream;
   sstream<<fileptr.rdbuf();
 
-  std::cout<<"size normal: "<<sstream.str().size()<<std::endl;
   std::string encrypted_content = encrypt(sstream.str());
 
   auto file_size = encrypted_content.size();
 
-  std::cout<<"ORIGINAL size: "<<fs::file_size(file)<<std::endl;
-  std::cout<<"ENCRYPTED size: "<<encrypted_content.size()<<std::endl;
+  //std::cout<<"ORIGINAL size: "<<fs::file_size(file)<<std::endl;
+  //std::cout<<"ENCRYPTED size: "<<encrypted_content.size()<<std::endl;
 
   sstream.str(""); //emptying sstream
   sstream<<encrypted_content;
@@ -341,23 +340,24 @@ splitted_entries_type encrypt_split_and_hash_file(fs::path file){
   std::vector<std::pair<std::string, std::string>> pieces_content;
   pieces_content.reserve(no_of_pieces);
 
-  //encrypt the file before splitting it into pieces
+  /*
+   * the library porvides hash in hex string
+   * need to change it into bitset
+   */
   auto get_hash= [](const std::string& data){
     SHA1 hashing;
     hashing.update(data);
     std::string actual_hash=hashing.final();//this is in hex form
-    char c;
-    c=actual_hash[0];
 
-    int intval = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
+    kademlia::ID id;
+    for(int i=0; i<NO_OF_BIT / 4 ;i++){\
+      char c=actual_hash[i]; //first nibble for i = 0
+      int intval = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
+      //intval=intval<<4;
+      id <<= 4;
+      id |= intval;
+    }
 
-    intval=intval<<4;
-
-    std::bitset<NO_OF_BIT> id(intval);
-    c=actual_hash[1];
-    intval =  (c >= 'a') ? (c - 'a' + 10) : (c - '0');
-
-    id|=intval;
     std::cout<<"actual_hash "<<actual_hash<<std::endl
       <<" truncated_hash: "<<id<<std::endl;
     return id.to_string();
@@ -498,6 +498,7 @@ void retrieve_file(fs::path file_path){
     }
   }
   catch(int){
+    return;
   }
 
   std::cout<<"content size: "<<content_stream.str().size()<<std::endl;
