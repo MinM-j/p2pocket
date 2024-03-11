@@ -27,29 +27,6 @@ ID generate_id(){
 }
 
 //no of bit maxm -> 256 ( 32 byte)
-std::string generate_random_bit(int no_of_bit){ 
-  std::random_device random_device;
-  std::mt19937 generator;
-  generator.seed(random_device());
-
-  constexpr int generator_bit= 8; //size of std::mt19937()??
-
-
-  std::stringstream sstream;
-
-  for(int i = 0; i< no_of_bit/generator_bit;i++){
-    auto random = generator();
-
-    unsigned int mask = (1<<no_of_bit )-1;
-    uint8_t byte = random & mask;
-
-    sstream << static_cast<char>(byte);
-  }
-
-  return sstream.str();
-
-}
-
 ID create_id(std::string str){
   //just doesn't matter  just don't reverse at all
   //std::reverse(str.begin(), str.end());

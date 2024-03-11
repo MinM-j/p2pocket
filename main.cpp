@@ -8,6 +8,7 @@
 using namespace std;
 
 
+#include<crypto.h>
 
 int main(int argc, char* argv[]){
   //timer_debug();
@@ -16,11 +17,16 @@ int main(int argc, char* argv[]){
 
   //init_node(argc, argv);
 
+  std::string src{"hello world"};
+
+  crypto_init(kademlia::project_path / "test_encryption");
+  auto cipher= encrypt(src);
+  auto decipher = decrypt(cipher);
+  std::cout<<cipher<<std::endl
+    << decipher<<std::endl;
   //client_debug();
   //event_loop();
-
-auto byte= kademlia::generate_random_bit(128);
-
-  std::cout<<byte<<std::endl;
   return 0;
 }
+
+
