@@ -8,8 +8,9 @@
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 
-extern std::string key;
-extern std::string iv;
+
+extern std::string encryption_key;
+extern std::string conjuction_key;
 
 void crypto_init();
 

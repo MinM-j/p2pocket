@@ -5,7 +5,7 @@
 #include<cstdlib>
 #include<fstream>
 #include<cmath>
-#include<stringstream>
+#include<sstream>
 
 #include<interface.h>
 #include<sha1.h>
@@ -427,6 +427,7 @@ void retrieve_directory(fs::path dir_path){
 
 
 void retrieve_file(fs::path file_path){
+  /*
   std::cout<<"retrieving file: "<<file_path<<std::endl;
 
   std::ifstream metadata_file{file_path};

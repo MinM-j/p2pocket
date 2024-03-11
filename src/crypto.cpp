@@ -1,21 +1,28 @@
 #include <crypto.h>
+#include<config.h>
 
-void crypto_init(){
+namespace fs = std::filesystem;
+
+std::string encryption_key;
+std::string conjuction_key;
+
+void crypto_init(fs::path peer_root_path){
 	///* TODO: write a file name*/
-	const std::string file_name = ""; // file containing key and conjuction text
-	if(std::filesystem::exists(file_name)){
-		std::ifstream file{file_name};
+
+  fs::path encryption_key_file_path{peer_root_path/kademlia::encryption_key_file};
+	if(std::filesystem::exists(encryption_key_file_path)){
+		std::ifstream file{encryption_key_file_path};
 		std::stringstream buffer;
 		file.close();
 		buffer << file.rdbuf();
 		std::string file_data{buffer.str()};
-		key.assign(file_data.substr(0, file_data.find('\n')));
-		iv.assign(file_data.substr(file_data.find('\n')+1));
+		encryption_key.assign(file_data.substr(0, file_data.find('\n')));
+		conjuction_key.assign(file_data.substr(file_data.find('\n')+1));
 	}
 	else{
-		std::ofstream file{file_name};
-		///* TODO: create 256 bit random for key and 128 bit random for iv*/
-		file << key << "\n" << iv;
+		std::ofstream file{encryption_key_file_path};
+		///* TODO: create 256 bit random for encryption_key and 128 bit random for conjuction_key*/
+		file << encryption_key << "\n" << conjuction_key;
 		file.close();
 	}
 }
@@ -23,7 +30,7 @@ void crypto_init(){
 std::string encrypt(const std::string& plain_text){
 	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
 	std::string cipher_text;
-	EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, reinterpret_cast<const unsigned char*>(key.c_str()), reinterpret_cast<const unsigned char*>(iv.c_str()));
+	EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, reinterpret_cast<const unsigned char*>(encryption_key.c_str()), reinterpret_cast<const unsigned char*>(conjuction_key.c_str()));
 	int len{};
 	int cipher_text_len{};
 	cipher_text.resize(plain_text.length() + AES_BLOCK_SIZE);
@@ -39,7 +46,7 @@ std::string encrypt(const std::string& plain_text){
 std::string decrypt(const std::string& cipher_text){
 	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
 	std::string plain_text;
-	EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, reinterpret_cast<const unsigned char *>(key.c_str()), reinterpret_cast<const unsigned char*>(iv.c_str()));
+	EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, reinterpret_cast<const unsigned char *>(encryption_key.c_str()), reinterpret_cast<const unsigned char*>(conjuction_key.c_str()));
 	int len{};
 	int plain_text_len{};
 	plain_text.resize(cipher_text.length());

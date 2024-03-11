@@ -20,7 +20,7 @@ bool operator()( const ID& id1,  const ID& id2)const;
 //extern id_comparer_type ID_comparer;
 
 ID generate_id();
-
+std::string generate_random_bit(int no_of_bit);
 }//namespace kademlia
 
 #endif //ID_H

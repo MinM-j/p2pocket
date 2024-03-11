@@ -68,7 +68,7 @@ public:
 
   //change name to .*_piece
   std::vector<kademlia::ID> store_file(kademlia::ID file_hash, std::string content);
-  std::string retrieve_file(kademlia::ID piece_hash, const std::vector& storing_nodes);
+  std::string retrieve_file(kademlia::ID piece_hash, const std::vector<kademlia::ID>& storing_nodes);
 
   wait_responses_type wait_for_responses(nodes_tracker_type& nodes_tracker,kademlia::messageType msg_type);
   kademlia::message wait_response(kademlia::ID id, kademlia::messageType msg_type, double wait_time=3);

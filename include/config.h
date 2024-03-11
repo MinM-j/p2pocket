@@ -24,6 +24,7 @@ inline const std::string network_fs_dir{ "network_fs"};
 inline const std::string data_dir{ "data"};
 
 inline const std::string id_file{"id.dat"};
+inline const std::string encryption_key_file{"encryption_key.dat"};
 
 inline const int replica_count=2;
 }

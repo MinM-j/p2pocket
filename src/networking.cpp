@@ -517,7 +517,7 @@ kademlia::message client::wait_response(kademlia::ID id, kademlia::messageType m
   throw(1);
 }
 
-std::string retrieve_file(kademlia::ID piece_hash, const std::vector& storing_nodes){
+std::string retrieve_file(kademlia::ID piece_hash, const std::vector<kademlia::ID>& storing_nodes){
 }
 }//namespace network
 }//namespace kademlia
