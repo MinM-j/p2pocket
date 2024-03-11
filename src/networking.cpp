@@ -91,7 +91,7 @@ void client::handle_receive(const system::error_code& error, size_t bytes_tranfe
 
   std::cout<<"\n================================================================"<<std::endl;
   std::cout << "\nBytes received:" << bytes_tranferred <<"from "<<remote_endpoint<<std::endl;
-  std::cout<< "msg_type "<<msg.header.msg_type<< "\n"<<std::endl;
+  //std::cout<< "msg_type "<<msg.header.msg_type<< "\n"<<std::endl;
 
   endpoint_type endpoint(remote_endpoint.address().to_string(),remote_endpoint.port());
 

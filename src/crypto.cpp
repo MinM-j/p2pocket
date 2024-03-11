@@ -8,11 +8,9 @@ const size_t encryption_key_size = 32; //byte
 const size_t conjunction_key_size = 16; //byte
 
 void crypto_init(fs::path peer_root_path){
-  ///* TODO: write a file name*/
-
   fs::path encryption_key_file_path{peer_root_path/kademlia::encryption_key_file};
   if(std::filesystem::exists(encryption_key_file_path)){
-    std::cout<<"reading from file "<<encryption_key_file_path<<std::endl;
+    std::cout<<"reading encryption keys from file "<<encryption_key_file_path<<std::endl;
 
     std::ifstream file{encryption_key_file_path}; std::stringstream buffer;
 
@@ -27,14 +25,12 @@ void crypto_init(fs::path peer_root_path){
   else{
 
     fs::create_directories(peer_root_path);
-    std::cout<<" creating file "<<encryption_key_file_path<<std::endl;
+    std::cout<<" creating file for encrption keys: "<<encryption_key_file_path<<std::endl;
     std::ofstream file{encryption_key_file_path};
     std::cout<<"file open? "<<std::boolalpha<<file.is_open()<<std::endl;
     if(!file.is_open()){
       std::cout<<"file not open"<<std::endl;
     }
-    ///* TODO: create 256 bit random for encryption_key and 128 bit random for conjunction_key*/
-
     encryption_key = generate_random_byte(encryption_key_size);
     conjunction_key = generate_random_byte(conjunction_key_size);
 

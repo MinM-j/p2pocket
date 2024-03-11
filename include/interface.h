@@ -41,7 +41,7 @@ void store_file(fs::path file_path);
 void retrieve_directory(fs::path dir_path);
 void retrieve_file(fs::path file_path);
 void execute_list_files();
-splitted_entries_type split_and_hash_file(fs::path file);
+splitted_entries_type encrypt_split_and_hash_file(fs::path file);
 void store_file(fs::path file_path);
 void create_metadata_file(const splitted_entries_type& splitted_entries,const fs::path& filename);
 

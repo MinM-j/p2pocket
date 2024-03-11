@@ -6,10 +6,12 @@
 #include<fstream>
 #include<cmath>
 #include<sstream>
+#include<ios>
 
 #include<interface.h>
 #include<sha1.h>
 #include<networking.h>
+#include<crypto.h>
 
 kademlia::network::client client;
 const std::size_t PIECE_SIZE{100};
@@ -32,6 +34,7 @@ void init_node(int argc , char* argv[]){
   peer_root_path = kademlia::project_path/peer_name;
 
   create_init_directories(peer_root_path);
+  crypto_init(peer_root_path);
   auto id = create_new_id(peer_root_path);
 
   const kademlia::endpoint_type boot_node{"127.0.0.1",8848};
@@ -220,7 +223,7 @@ void execute_list_files(){
 void execute_store_command(const args_type& args){
   //TODO: IMP: cannot close and start node again
   //TODO: IMP: bootstrapping node not storing file
-  //TODO: IMP:directory name in each recursion
+  //TODO: IMP: directory name in each recursion
   //TODO: IMP: iterate through all args(paths)
   //TODO: IMP: encryption(done)
   //TODO: IMP: set storage limit
@@ -266,7 +269,7 @@ void store_directory(fs::path dir_path){
 
 void store_file(fs::path file_path){
 
-  splitted_entries_type splitted_entries = split_and_hash_file(file_path);
+  splitted_entries_type splitted_entries = encrypt_split_and_hash_file(file_path);
 
   std::cout<<"storing file: "<<file_path<<std::endl;
   std::cout<<"total piece: "<<splitted_entries.size()<<std::endl;
@@ -276,8 +279,13 @@ void store_file(fs::path file_path){
   std::cout<<"=========================================="<<std::endl;
   std::cout<<"=========================================="<<std::endl;
   std::cout<<"=========================================="<<std::endl;
+
+  std::cout<<"storing piece: "<<std::endl;
+
+  for(const auto& [key,value] : splitted_entries)
+  std::cout<<"size "<<value.size()<<std::endl;
+
   for(const auto& [key,value] : splitted_entries){
-    std::cout<<"storing piece: "<<std::endl;
     kademlia::ID id{key};
     //client.store_file(id, value);
     std::cout<<key<<" size: "<<value.size()<<std::endl;
@@ -285,6 +293,7 @@ void store_file(fs::path file_path){
     //store_responses.emplace_back(key, store_responses)
     all_storing_nodes.emplace_back(key, response);
   }
+
   std::cout<<"=========================================="<<std::endl;
   std::cout<<"=========================================="<<std::endl;
   std::cout<<"=========================================="<<std::endl;
@@ -303,21 +312,36 @@ void store_file(fs::path file_path){
   metadata_file.close();
 }
 
-splitted_entries_type split_and_hash_file(fs::path file){
+splitted_entries_type encrypt_split_and_hash_file(fs::path file){
   std::ifstream fileptr{file, std::ios::binary | std::ios::ate};
+  fileptr.seekg(0,std::ios::beg);
 
-  auto file_size = fileptr.tellg();
-  fileptr.seekg(0);
+
+  std::stringstream sstream;
+  sstream<<fileptr.rdbuf();
+
+  std::cout<<"size normal: "<<sstream.str().size()<<std::endl;
+  std::string encrypted_content = encrypt(sstream.str());
+
+  auto file_size = encrypted_content.size();
+
+  std::cout<<"ORIGINAL size: "<<fs::file_size(file)<<std::endl;
+  std::cout<<"ENCRYPTED size: "<<encrypted_content.size()<<std::endl;
+
+  sstream.str(""); //emptying sstream
+  sstream<<encrypted_content;
+
+  //sstream.seekg(0, std::ios::end);
+  //auto file_size = fileptr.tellg();
+  //fileptr.seekg(0,std::ios::beg);
 
   auto no_of_pieces = std::ceil(file_size/float(PIECE_SIZE));
-
 
   //std::pair<hash, content>
   std::vector<std::pair<std::string, std::string>> pieces_content;
   pieces_content.reserve(no_of_pieces);
 
   //encrypt the file before splitting it into pieces
-
   auto get_hash= [](const std::string& data){
     SHA1 hashing;
     hashing.update(data);
@@ -342,7 +366,7 @@ splitted_entries_type split_and_hash_file(fs::path file){
 
   for(int i = 0; i<no_of_pieces - 1; i++){
     std::string data(PIECE_SIZE, '\0');
-    fileptr.read(&data[0], PIECE_SIZE);
+    sstream.read(&data[0], PIECE_SIZE);
     std::string hash=get_hash(data);
     pieces_content.emplace_back(hash,data);
   }
@@ -350,7 +374,7 @@ splitted_entries_type split_and_hash_file(fs::path file){
   //read last piece
   auto last_piece_size = file_size % PIECE_SIZE;
   std::string data(last_piece_size, '\0');
-  fileptr.read(&data[0], last_piece_size);
+  sstream.read(&data[0], last_piece_size);
   pieces_content.emplace_back(get_hash(data).c_str(),data.c_str());
 
   //std::for_each(pieces_content.begin(), pieces_content.end(),
@@ -476,9 +500,13 @@ void retrieve_file(fs::path file_path){
   catch(int){
   }
 
+  std::cout<<"content size: "<<content_stream.str().size()<<std::endl;
+
+  std::string decrypted_content = decrypt(content_stream.str());
+
   fs::path dest_path{retrieved_data_path/file_path.filename()};
   std::ofstream fptr{dest_path};
-  fptr<<content_stream.rdbuf();
+  fptr<<decrypted_content;
   std::cout<<"retrieved data in file: "<<dest_path<<std::endl;
   //content_stream << content;
 }
