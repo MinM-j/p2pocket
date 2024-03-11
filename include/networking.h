@@ -46,6 +46,9 @@ public:
 
   using nodes_tracker_type=std::map<ID, peer_request_info, kademlia::ID_comparer>;
 
+  using wait_response_type = std::pair<ID, message>;
+  using wait_responses_type= std::vector<wait_response_type>;
+
   client();
   client(const uint16_t port, std::string self_id);
   ~client();
@@ -61,15 +64,20 @@ public:
 
 
   void find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kademlia::ID id_to_find);
-  void store_file(kademlia::ID file_hash, std::string content);
   void bootstrap(kademlia::endpoint_type boot_ep);
+
+  //change name to .*_piece
+  std::vector<kademlia::ID> store_file(kademlia::ID file_hash, std::string content);
+  std::string retrieve_file(kademlia::ID piece_hash, const std::vector& storing_nodes);
+
+  wait_responses_type wait_for_responses(nodes_tracker_type& nodes_tracker,kademlia::messageType msg_type);
   kademlia::message wait_response(kademlia::ID id, kademlia::messageType msg_type, double wait_time=3);
   kademlia::message get_first_response(double wait_time=2);
 private:
   void handle_receive(const system::error_code& error, size_t bytes_tranferred);
   void wait();
-  void store(std::pair<std::string,std::string> key_value);
-  void find_value(std::pair<std::string,uint16_t> endpoint, std::string node_id);
+  //void store(std::pair<std::string,std::string> key_value);
+  //void find_value(std::pair<std::string,uint16_t> endpoint, std::string node_id);
   void ping(std::pair<std::string,uint16_t> endpoint);
   void find_node(std::pair<std::string,uint16_t> endpoint, std::string node_id);
 

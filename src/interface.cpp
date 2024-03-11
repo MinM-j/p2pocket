@@ -5,6 +5,7 @@
 #include<cstdlib>
 #include<fstream>
 #include<cmath>
+#include<stringstream>
 
 #include<interface.h>
 #include<sha1.h>
@@ -13,6 +14,10 @@
 
 kademlia::network::client client;
 const std::size_t PIECE_SIZE{100};
+
+fs::path peer_root_path;
+fs::path network_files_path;
+fs::path network_filesystem;
 
 void init_node(int argc , char* argv[]){
   if(argc<3){
@@ -24,7 +29,7 @@ void init_node(int argc , char* argv[]){
   int port = std::atoi(argv[2]);
   std::cout<<"peer: "<<peer_name<<" port: "<<port<<std::endl;
 
-  const fs::path peer_root_path(kademlia::project_path/peer_name);
+  peer_root_path = kademlia::project_path/peer_name;
 
   create_init_directories(peer_root_path);
   auto id = create_new_id(peer_root_path);
@@ -69,8 +74,8 @@ std::string create_new_id(fs::path peer_root_path){
 }
 
 void create_init_directories(fs::path peer_root_path){
-  const fs::path peer_network_files_path{peer_root_path/kademlia::network_data_dir};
-  const fs::path peer_filesystem{peer_root_path/kademlia::network_fs_dir};
+  network_files_path = peer_root_path/kademlia::network_data_dir;
+  network_filesystem = peer_root_path/kademlia::network_fs_dir;
 
   std::cout<<"creating necessary files and dirs"<<std::endl;
 
@@ -78,8 +83,8 @@ void create_init_directories(fs::path peer_root_path){
   bool success;
 
   success = fs::create_directories(peer_root_path,ec);
-  success = fs::create_directories(peer_network_files_path,ec);
-  success = fs::create_directories(peer_filesystem,ec);
+  success = fs::create_directories(network_files_path,ec);
+  success = fs::create_directories(network_filesystem,ec);
 }
 void event_loop(std::string peer_name){
   std::string input;
@@ -156,7 +161,8 @@ void handle_input(input_command_type command, const args_type& args){
       break;
     //break;
     case RETRIEVE:
-    //execute_retrieve();
+      execute_retrieve(args);
+      break;
     //break;
     case FILE_STATUS:
       //execute_file_status();
@@ -180,7 +186,12 @@ void execute_help(){
   std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"help"<<std::endl;
   std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"store"<<"[file | dir]"<<std::endl;
   std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"ls"<<std::endl;
-  std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"pwd"<<std::endl;
+  //std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"pwd"<<std::endl;
+  std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"retrieve"<<"[file | dir]"<<std::endl;
+  std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"status"<<"[file | dir]"<<std::endl;
+  //std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"retrieve"<<"[file | dir]"<<std::endl;
+  //std::cout<<"\t"<<std::left<<std::setw(command_characters)<<"retrieve"<<"[file | dir]"<<std::endl;
+
   std::cout<<std::endl;
 }
 
@@ -203,6 +214,8 @@ void execute_list_files(){
  */
 
 void execute_store_command(const args_type& args){
+  //TODO: IMP: cannot close and start node again
+  //TODO: IMP:directory name in each recursion
   //TODO: IMP: iterate through all args(paths)
   //TODO: IMP: encryption
   //TODO: IMP: set storage limit
@@ -247,21 +260,41 @@ void store_directory(fs::path dir_path){
 }
 
 void store_file(fs::path file_path){
-  std::cout<<"storing file: "<<file_path<<std::endl;
 
   splitted_entries_type splitted_entries = split_and_hash_file(file_path);
 
+  std::cout<<"storing file: "<<file_path<<std::endl;
   std::cout<<"total piece: "<<splitted_entries.size()<<std::endl;
+
+  std::vector<std::pair<kademlia::ID, std::vector<kademlia::ID >>> all_storing_nodes;
+
+  std::cout<<"=========================================="<<std::endl;
+  std::cout<<"=========================================="<<std::endl;
+  std::cout<<"=========================================="<<std::endl;
   for(const auto& [key,value] : splitted_entries){
+    std::cout<<"storing piece: "<<std::endl;
     kademlia::ID id{key};
     //client.store_file(id, value);
-    std::cout<<key<<" "<<value.size()<<std::endl;
-    client.store_file(id,value);
+    std::cout<<key<<" size: "<<value.size()<<std::endl;
+    auto response = client.store_file(id,value);
+    //store_responses.emplace_back(key, store_responses)
+    all_storing_nodes.emplace_back(key, response);
   }
-  //TODO: store the file
+  std::cout<<"=========================================="<<std::endl;
+  std::cout<<"=========================================="<<std::endl;
+  std::cout<<"=========================================="<<std::endl;
 
+  //TO create a metadata file we need all the piece hash, and corresponding storing nodes.
+  std::ofstream  metadata_file{network_filesystem / file_path.filename()};
 
-  //create_metadata_file(splitted_entries, file_path);
+  for(const auto& [piece_hash, storing_nodes] : all_storing_nodes){
+    metadata_file<<piece_hash;
+    for( auto storing_node: storing_nodes )
+    metadata_file<<" "<<storing_node;
+    metadata_file<<"\n";
+  }
+
+  metadata_file.close();
 }
 
 splitted_entries_type split_and_hash_file(fs::path file){
@@ -282,22 +315,21 @@ splitted_entries_type split_and_hash_file(fs::path file){
   auto get_hash= [](const std::string& data){
     SHA1 hashing;
     hashing.update(data);
-    std::string hash=hashing.final();//this is in hex form
+    std::string actual_hash=hashing.final();//this is in hex form
     char c;
-    c=hash[0];
-    int intval = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
+    c=actual_hash[0];
 
+    int intval = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
 
     intval=intval<<4;
 
     std::bitset<NO_OF_BIT> id(intval);
-    c=hash[1];
+    c=actual_hash[1];
     intval =  (c >= 'a') ? (c - 'a' + 10) : (c - '0');
 
     id|=intval;
-
-
-    //return hash;
+    std::cout<<"actual_hash "<<actual_hash<<std::endl
+      <<" truncated_hash: "<<id<<std::endl;
     return id.to_string();
     //TEMP TODO: remove substr
   };
@@ -323,6 +355,7 @@ splitted_entries_type split_and_hash_file(fs::path file){
 
   return pieces_content;
 }
+
 void create_metadata_file(const splitted_entries_type& splitted_entries,const fs::path& filename){
   //TODO: store storing_nodes id
   fs::path metadata_path{client.root_path/filename};
@@ -349,4 +382,126 @@ void create_metadata_file(const splitted_entries_type& splitted_entries,const fs
   }
   std::cout<<std::endl;
 
+}
+
+void execute_retrieve(const args_type& args){
+
+  const auto file_or_dir_name = args[1];
+  const auto& file_or_dir_path=network_filesystem/file_or_dir_name;
+
+  //not though about absolute or relative path
+  //since no idea what will be the cwd used by fs::exists in case of relative path?
+  // make the path relative to the cwd?
+
+  if(!fs::exists(file_or_dir_path)){
+    throw std::invalid_argument("invalid file or directory path: "+file_or_dir_name);
+  }
+
+  if(fs::is_directory(file_or_dir_path)){
+    std::cout<<"retrieving directory: "<<file_or_dir_path <<std::endl;
+    retrieve_directory(file_or_dir_path);
+    //do this later
+    return;
+  }
+  else
+  retrieve_file(file_or_dir_path);
+}
+
+void retrieve_directory(fs::path dir_path){
+  std::cout<<"iterating directory: "<< dir_path <<std::endl;
+  for (const auto& dir_entry : fs::directory_iterator(dir_path)) {
+    if (fs::is_directory(dir_entry)) {
+      // If the entry is a directory, recursively process it
+      retrieve_directory(dir_entry);
+    } else if (fs::is_regular_file(dir_entry)) {
+      // If the entry is a regular file, call the storefile function
+      retrieve_file(dir_entry);
+    }
+    else{
+      //not a regular file or directory
+      std::cout<<"handle this error";
+      throw("handle this");
+    }
+  }
+}
+
+
+void retrieve_file(fs::path file_path){
+  std::cout<<"retrieving file: "<<file_path<<std::endl;
+
+  std::ifstream metadata_file{file_path};
+  std::string line;
+  std::vector<std::string> pieces_metadata;
+  while(std::getline(metadata_file, line)){
+    piece_hashes.push_back(line);
+  }
+
+  std::cout<<"total pieces: "<<pieces_metadata.size()<<std::endl;
+  std::cout<<"piece hashes: \n";
+
+  std::vector<std::pair<kademlia::ID, std::vector<kademlia::ID>>> all_storing_nodes;
+  for(const auto& piece_metadata: pieces_metadata){
+    std::vector<kademlia::ID> storing_nodes;
+    std::stringstream sstream;
+    sstream<< piece_metadata;
+    std::string id;
+
+    sstream>>id;//piece_id
+    kademlia::ID piece_id{id};
+
+    while(sstream)
+
+
+
+    //std::cout<<e<<std::endl;
+  }
+
+  client.retrieve_file()
+
+  /*
+    std::shared_ptr<std::map<std::string,std::string>> piece_contents = std::make_shared<std::map<std::string,std::string>>();
+
+    for(const std::string hash: piece_hashes){
+
+    auto on_load = [=]( std::error_code const& error
+    , k::session::data_type const& data ) mutable
+    {
+    std::cout<<std::endl<<std::endl;
+    std::cout<<"captured hash "<<hash<<std::endl;
+    if ( error )
+    {
+    std::cout<<"err"<<std::endl;
+    std::cerr << "Failed to load \"" << hash << "\" piece of file" << filename<< std::endl;
+    }
+    //error handle
+    else
+    {
+    //std::cout<<"received response "<<std::endl;
+    std::string const content{ data.begin(), data.end() };
+
+    std::cout<<"map size before emplace"<<piece_contents->size()<<std::endl;
+    std::cout<<"emplacing: "<<hash<<" "<<content.size()<<std::endl;
+
+    piece_contents->emplace(hash, content);
+
+    std::cout<<"map contents: "<<std::endl;
+    for(auto p : *piece_contents)
+    std::cout<<p.first<<" "<<p.second.size()<<std::endl;
+    std::cout<<std::endl;
+    if(piece_contents->size()==piece_hashes.size()){
+    std::cout<<"file piece collected"<<std::endl;
+    std::stringstream filestream;
+    for(const auto piece_hash: piece_hashes){
+    auto value_iterator = piece_contents->find(piece_hash);
+    filestream << value_iterator->second;
+    }
+    std::ofstream fileptr{p2pocket_retrieve_dir/filename};//todo: dir
+    fileptr<<filestream.rdbuf();
+    std::cout<<"The retrieved file is: "<<p2pocket_retrieve_dir/filename<<std::endl;
+    }
+    }
+    };
+    session.async_load( hash, std::move( on_load ) );
+    }
+    */
 }

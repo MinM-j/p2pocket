@@ -4,8 +4,6 @@
 
 
 int main(int argc,  char* argv[]){
-
-
   std::string peer_name="bootstrap";
   const fs::path peer_root_path(kademlia::project_path/peer_name);
 

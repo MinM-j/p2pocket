@@ -12,8 +12,10 @@ void kademlia::storage::store_piece(fs::path peer_path,kademlia::message msg){
 
   std::cout<<"hash: "<<hash<<" length: "<<content.length()<<std::endl;
 
-  std::cout<<"storing file "<<hash<<std::endl;
+
   fs::path network_data_path{peer_path/kademlia::network_data_dir};
+  std::cout<<"storing file "<<hash<<" in "<<network_data_path<<std::endl;
+
   std::ofstream fileptr{network_data_path/hash.to_string()};
   fileptr <<content;
   fileptr.close();

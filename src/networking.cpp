@@ -123,7 +123,8 @@ void client::send(const std::pair<std::string, uint16_t> endpoint,message& msg){
     data = stream_data.str();
   }
   auto sent = socket.send_to(asio::buffer(data), receiver_endpoint, 0, send_error);
-  std::cout << sent << " bytes sent to(" << receiver_endpoint.address() << ":" << receiver_endpoint.port() << ")\n\n";
+  std::cout << sent << " bytes sent to(" << receiver_endpoint.address() << ":" << receiver_endpoint.port() << ")\n";
+  std::cout<<"msg_type: "<<msg.header.msg_type<<std::endl<<std::endl;
 
 }
 
@@ -179,6 +180,7 @@ void client::handle_ping_request(const endpoint_type endpoint,message msg){
 void client::handle_store_request(const endpoint_type endpoint,message msg){
   std::cout<<"received `store` request from "<<endpoint<<"["<<msg.header.self_id<<"]"<<std::endl;
   message response{messageType::STORE_RESPONSE,self_id};
+
   routing_table.handle_communication(msg.header.self_id, endpoint);
 
   try{
@@ -220,6 +222,7 @@ void client::handle_find_value_request(const endpoint_type endpoint,message msg)
 
   message response{messageType::FIND_VALUE_RESPONSE,self_id};
 
+  //if not found send empty response
   if(!content.empty()){
     response << content;
   }
@@ -228,7 +231,7 @@ void client::handle_find_value_request(const endpoint_type endpoint,message msg)
 }
 
 constexpr int replication_value = 4;
-void client::store_file(ID file_hash, std::string content){
+std::vector<kademlia::ID> client::store_file(ID file_hash, std::string content){
   /*
    * find all the closest nodes to the file_hash present in the routing table 
    * send find_node request to current closest nodes
@@ -248,7 +251,6 @@ void client::store_file(ID file_hash, std::string content){
     throw("corresp[onding k bucket is empty");
   }
 
-  std::cout<<"hello"<<std::endl;
 
   nodes_tracker_type closest_nodes_tracker;
   for(auto [id, endpoint]: closest_nodes){
@@ -264,6 +266,7 @@ void client::store_file(ID file_hash, std::string content){
     if(node_status.status==REQUEST_RECEIVED && id != this->self_id)
       candidate_peers.emplace_back(id, node_status.endpoint);
   }
+  //TODO: 
 
   std::sort(candidate_peers.begin(), candidate_peers.end(),
             [file_hash](const auto& lhs, const auto& rhs){
@@ -272,23 +275,90 @@ void client::store_file(ID file_hash, std::string content){
             return (file_hash ^ lhs.first).to_ulong()<  (file_hash ^ rhs.first).to_ulong();
             });
 
-  std::cout<<"total nodes found for piece("<<file_hash<<"): "<<candidate_peers.size()<<std::endl;
-  std::cout<<"[";
-  for(auto peer : candidate_peers)
-  std::cout<<peer.second.second<<", ";
-  std::cout<<"]\n";
-  //now send store request
-  //TODO
+  //std::cout<<"total nodes found for piece("<<file_hash<<"): "<<candidate_peers.size()<<std::endl;
+  nodes_tracker_type storing_nodes_tracker;
 
   auto no_of_nodes=std::min(kademlia::replica_count,static_cast<int>(candidate_peers.size()));
+
+  std::cout<<"STORING PIECE "<<file_hash<<" in peers:"<<std::endl;
   std::for_each(candidate_peers.begin(), std::next(candidate_peers.begin(),no_of_nodes),
                 [&](auto candidate){
+                auto candidate_id = candidate.first;
                 auto endpoint = candidate.second;
+                std::cout<<endpoint<<", ";
                 send_store_request(endpoint, file_hash, content);
+                storing_nodes_tracker.insert({candidate_id,{endpoint, REQUEST_SENT, timer{}}});
                 });
+
+  wait_responses_type storing_node_responses = wait_for_responses(storing_nodes_tracker,messageType::STORE_RESPONSE);
   //view response and do accordingly TODO: IMP
+
+  std::vector<kademlia::ID> storing_nodes;
+  for(auto [storing_node, response]: storing_node_responses){
+    std::string msg; //success or error
+    response>>msg;
+    std::cout<<"msg: "<<msg<<std::endl;
+    if(msg!="success"){
+      std::cout<<"failed to store "<<file_hash << " in node "<<storing_node<<std::endl;
+    }
+    storing_nodes.push_back(storing_node);
+    //std::cout<<"id: "<<id<<" message: "<<msg<<std::endl;
+  }
+
+  return storing_nodes;
 }
 
+client::wait_responses_type client::wait_for_responses(nodes_tracker_type& nodes_tracker , kademlia::messageType msg_type){
+  wait_responses_type responses_vec;
+
+  while(1){
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(20ms);
+    bool node_query_completed = true;
+    for( auto& [id, node_status]: nodes_tracker){
+      switch(node_status.status){
+        case REQUEST_RECEIVED:
+        case REQUEST_TIMEOUT:
+          break;
+        case NO_ACTION:
+          std::cout<<"(error): all nodes should have been sent request"<<std::endl;
+          throw(1);
+          break;
+        case REQUEST_SENT:
+          auto it = responses.find(id);
+          if(it==responses.end()){
+            if(node_status.timer.elapsed()>TIMEOUT_LIMIT){
+              std::cout<<"timing out "<< id <<":"<<node_status.endpoint<<std::endl;
+              node_status.status = REQUEST_TIMEOUT;
+              continue;
+              //TODO: find a way to remove responses of terminated request from `responses`
+              //if they arrive later
+            }
+            //not found
+            node_query_completed=false;
+            continue;
+          }
+
+          std::cout<<"found response from "<<node_status.endpoint<<std::endl;
+          auto message = it->second;
+          if(message.header.msg_type!=msg_type){
+            continue;
+            //TODO:
+          }
+
+          responses.erase(it);
+          std::cout<<"msg type: "<<message.header.msg_type<<std::endl;
+          responses_vec.emplace_back(id, message);
+          break;
+      }
+    }
+    if(node_query_completed)
+      break;
+  }
+  std::cout<<"returning responses"<<std::endl;
+  return responses_vec;
+
+}
 
 //call this function when we don't expect `node_id`|`value_id` to be found
 void client::find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kademlia::ID id_to_find){
@@ -321,6 +391,7 @@ void client::find_id_recursively(nodes_tracker_type& closest_nodes_tracker, kade
           }
 
           auto message = it->second;
+          responses.erase(it);
           if(message.header.msg_type!=messageType::FIND_NODE_RESPONSE){
             continue;
             //TODO:
@@ -444,6 +515,9 @@ kademlia::message client::wait_response(kademlia::ID id, kademlia::messageType m
   }
   //TODO: create new exception class
   throw(1);
+}
+
+std::string retrieve_file(kademlia::ID piece_hash, const std::vector& storing_nodes){
 }
 }//namespace network
 }//namespace kademlia

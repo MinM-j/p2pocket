@@ -34,9 +34,12 @@ void execute_help();
 void execute_store_command(const args_type& args);
 void execute_pwd();
 void execute_quit();
+void execute_retrieve(const args_type& args);
 
 void store_directory(fs::path dir_path);
 void store_file(fs::path file_path);
+void retrieve_directory(fs::path dir_path);
+void retrieve_file(fs::path file_path);
 void execute_list_files();
 splitted_entries_type split_and_hash_file(fs::path file);
 void store_file(fs::path file_path);
