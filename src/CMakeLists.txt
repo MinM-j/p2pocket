@@ -9,7 +9,11 @@ ${Path}/timer.cpp
 ${Path}/types.cpp 
 )
 
+set(Crypto
+	${Path}/crypto.cpp
+)
+
 add_subdirectory(${Path}/kademlia)
 
-set(Sources ${Kademlia} ${Networking} PARENT_SCOPE)
+set(Sources ${Kademlia} ${Networking} ${Crypto} PARENT_SCOPE)
 

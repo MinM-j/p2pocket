@@ -10,6 +10,10 @@ ${Path}/types.h
 ${Path}/timer.h
 )
 
+set(Crypto
+	${Path}/crypto.h
+)
+
 add_subdirectory(${Path}/kademlia)
 
-set(Headers ${Kademlia} ${Networking} PARENT_SCOPE)
+set(Headers ${Kademlia} ${Networking} ${Crypto} PARENT_SCOPE)

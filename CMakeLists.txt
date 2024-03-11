@@ -12,6 +12,9 @@ set(Path ${CMAKE_CURRENT_SOURCE_DIR})
 FIND_PACKAGE(Boost 1.83.0 COMPONENTS program_options serialization system REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
 
+FIND_PACKAGE(OpenSSL REQUIRED)
+INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
+
 add_subdirectory(${Path}/include)
 add_subdirectory(${Path}/src)
 
@@ -26,6 +29,7 @@ add_executable(Minor ${Path}/main.cpp  ${Headers} ${Sources} ${Debug_files})
 target_include_directories(Minor PUBLIC ${Path}/include)
 target_include_directories(Minor PUBLIC ${Path})
 TARGET_LINK_LIBRARIES(Minor LINK_PUBLIC ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(Minor LINK_PUBLIC ${OPENSSL_LIBRARIES})
 
 add_executable(Bootstrap ${Path}/bootstrap.cpp  ${Headers} ${Sources} ${Debug_files})
 target_include_directories(Bootstrap PUBLIC ${Path}/include)
