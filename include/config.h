@@ -26,6 +26,8 @@ inline const std::string data_dir{ "data"};
 inline const std::string id_file{"id.dat"};
 inline const std::string encryption_key_file{"encryption_key.dat"};
 
+inline const std::string routing_table_file{"routing_table.dat"};
+
 inline const int replica_count=2;
 inline const uint16_t boot_port=8849;
 }
