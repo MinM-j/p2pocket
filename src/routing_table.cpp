@@ -39,6 +39,7 @@ std::ostream& operator<<(std::ostream& out , const routing_table& table){
   //out<< "self: "<< table.m_self_id.to_string()<<std::endl;
   //for(const auto& bucket: table.m_k_buckets){
   out<<std::endl;
+  out<<"routing_table\n";
   for(int i = 0; i< table.m_k_buckets.size(); i++){
     if(table.m_k_buckets[i].empty())
       continue;
@@ -76,16 +77,16 @@ routing_table::k_bucket  routing_table::find_node(kademlia::ID node_id){
     return kb;
   }
   if(bucket.size()>1){
-    std::cout<<"bucket size greater than 2\n"<<node_id<<std::endl;
+    std::cout<<"bucket size greater than 1\n"<<node_id<<std::endl;
     return bucket;
   }
 
   std::vector<value_type> all_nodes;
 
-  std::cout<<"total_nodes find_node: "<<all_nodes.size()<<std::endl;
+  //std::cout<<"total_nodes find_node: "<<all_nodes.size()<<std::endl;
   for(auto k_bucket: m_k_buckets){
     for (auto node: k_bucket){
-        all_nodes.push_back(node);
+      all_nodes.push_back(node);
     }
   }
 
@@ -122,7 +123,7 @@ void routing_table::insert_node( kademlia::ID node_id, node_type node ){
 
     if(is_new_node){
       bucket.push_back(std::make_pair(node_id, node));
-      std::cout<<"inserted node with id: "<<node_id<<std::endl;
+      //std::cout<<"inserted node with id: "<<node_id<<std::endl;
     }
   }
 

@@ -6,18 +6,20 @@
 #include<fstream>
 #include<cmath>
 #include<sstream>
+#include<ios>
 
 #include<interface.h>
 #include<sha1.h>
 #include<networking.h>
-
+#include<crypto.h>
 
 kademlia::network::client client;
 const std::size_t PIECE_SIZE{100};
 
 fs::path peer_root_path;
-fs::path network_files_path;
-fs::path network_filesystem;
+fs::path network_files_path; //stored files of network
+fs::path network_filesystem; //metadata
+fs::path retrieved_data_path; //retrieved data
 
 void init_node(int argc , char* argv[]){
   if(argc<3){
@@ -32,9 +34,10 @@ void init_node(int argc , char* argv[]){
   peer_root_path = kademlia::project_path/peer_name;
 
   create_init_directories(peer_root_path);
+  crypto_init(peer_root_path);
   auto id = create_new_id(peer_root_path);
 
-  const kademlia::endpoint_type boot_node{"127.0.0.1",8848};
+  const kademlia::endpoint_type boot_node{"127.0.0.1",kademlia::boot_port};
 
   client.initialize(port,id,peer_root_path);
 
@@ -76,6 +79,8 @@ std::string create_new_id(fs::path peer_root_path){
 void create_init_directories(fs::path peer_root_path){
   network_files_path = peer_root_path/kademlia::network_data_dir;
   network_filesystem = peer_root_path/kademlia::network_fs_dir;
+  retrieved_data_path = peer_root_path/kademlia::data_dir;
+
 
   std::cout<<"creating necessary files and dirs"<<std::endl;
 
@@ -85,6 +90,8 @@ void create_init_directories(fs::path peer_root_path){
   success = fs::create_directories(peer_root_path,ec);
   success = fs::create_directories(network_files_path,ec);
   success = fs::create_directories(network_filesystem,ec);
+  success = fs::create_directories(retrieved_data_path,ec);
+
 }
 void event_loop(std::string peer_name){
   std::string input;
@@ -109,8 +116,10 @@ void event_loop(std::string peer_name){
 
     auto& input_command_str=args[0];
 
+    bool command_handled=false;
     for(const auto& [command, curr_command_string, required_args_count]: commands){
       if(input_command_str == curr_command_string){
+        command_handled=true;
         try{
           if(args.size() < required_args_count)
             throw std::invalid_argument{"incomplete arguments."};
@@ -125,6 +134,8 @@ void event_loop(std::string peer_name){
         break;
       }
     }
+    if(!command_handled)
+      execute_help();
     std::cout<<std::endl;
   }
 }
@@ -214,14 +225,21 @@ void execute_list_files(){
  */
 
 void execute_store_command(const args_type& args){
+  //TODO: IMP: frequent crash automatically 
   //TODO: IMP: cannot close and start node again
-  //TODO: IMP:directory name in each recursion
+  //TODO: IMP: directory name in each recursion (store directory)
+  //======================
   //TODO: IMP: iterate through all args(paths)
-  //TODO: IMP: encryption
+  //TODO: IMP: handle ID clash 
   //TODO: IMP: set storage limit
   //TODO: IMP: filter self id so that not to send req to self
   //TODO: persist ID(done) and routing table
   //TODO: broadcast ip change
+  //======================
+  //TODO: IMP: change ID size(done)
+  //TODO: IMP: bootstrapping node not storing file(done)
+  //TODO: IMP: encryption(done)
+
   const auto& file_or_dir_path=args[1];
   //not though about absolute or relative path
   //since no idea what will be the cwd used by fs::exists in case of relative path?
@@ -261,27 +279,23 @@ void store_directory(fs::path dir_path){
 
 void store_file(fs::path file_path){
 
-  splitted_entries_type splitted_entries = split_and_hash_file(file_path);
+  splitted_entries_type splitted_entries = encrypt_split_and_hash_file(file_path);
 
   std::cout<<"storing file: "<<file_path<<std::endl;
   std::cout<<"total piece: "<<splitted_entries.size()<<std::endl;
 
-  std::vector<std::pair<kademlia::ID, std::vector<kademlia::ID >>> all_storing_nodes;
+  std::vector<std::pair<kademlia::ID, std::vector<kademlia::routing_table::value_type>>> all_storing_nodes;
 
-  std::cout<<"=========================================="<<std::endl;
-  std::cout<<"=========================================="<<std::endl;
-  std::cout<<"=========================================="<<std::endl;
   for(const auto& [key,value] : splitted_entries){
-    std::cout<<"storing piece: "<<std::endl;
     kademlia::ID id{key};
     //client.store_file(id, value);
-    std::cout<<key<<" size: "<<value.size()<<std::endl;
+    //std::cout<<key<<" size: "<<value.size()<<std::endl;
     auto response = client.store_file(id,value);
+    std::cout<<"storingnodes: "<<response.size();
     //store_responses.emplace_back(key, store_responses)
     all_storing_nodes.emplace_back(key, response);
   }
-  std::cout<<"=========================================="<<std::endl;
-  std::cout<<"=========================================="<<std::endl;
+
   std::cout<<"=========================================="<<std::endl;
 
   //TO create a metadata file we need all the piece hash, and corresponding storing nodes.
@@ -289,45 +303,61 @@ void store_file(fs::path file_path){
 
   for(const auto& [piece_hash, storing_nodes] : all_storing_nodes){
     metadata_file<<piece_hash;
-    for( auto storing_node: storing_nodes )
-    metadata_file<<" "<<storing_node;
+    for( auto [node_id, node_endpoint]: storing_nodes ){
+      metadata_file<<" "<<node_id<<" "<<node_endpoint;
+    }
     metadata_file<<"\n";
   }
 
   metadata_file.close();
 }
 
-splitted_entries_type split_and_hash_file(fs::path file){
+splitted_entries_type encrypt_split_and_hash_file(fs::path file){
   std::ifstream fileptr{file, std::ios::binary | std::ios::ate};
+  fileptr.seekg(0,std::ios::beg);
 
-  auto file_size = fileptr.tellg();
-  fileptr.seekg(0);
+
+  std::stringstream sstream;
+  sstream<<fileptr.rdbuf();
+
+  std::string encrypted_content = encrypt(sstream.str());
+
+  auto file_size = encrypted_content.size();
+
+  //std::cout<<"ORIGINAL size: "<<fs::file_size(file)<<std::endl;
+  //std::cout<<"ENCRYPTED size: "<<encrypted_content.size()<<std::endl;
+
+  sstream.str(""); //emptying sstream
+  sstream<<encrypted_content;
+
+  //sstream.seekg(0, std::ios::end);
+  //auto file_size = fileptr.tellg();
+  //fileptr.seekg(0,std::ios::beg);
 
   auto no_of_pieces = std::ceil(file_size/float(PIECE_SIZE));
-
 
   //std::pair<hash, content>
   std::vector<std::pair<std::string, std::string>> pieces_content;
   pieces_content.reserve(no_of_pieces);
 
-  //encrypt the file before splitting it into pieces
-
+  /*
+   * the library porvides hash in hex string
+   * need to change it into bitset
+   */
   auto get_hash= [](const std::string& data){
     SHA1 hashing;
     hashing.update(data);
     std::string actual_hash=hashing.final();//this is in hex form
-    char c;
-    c=actual_hash[0];
 
-    int intval = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
+    kademlia::ID id;
+    for(int i=0; i<NO_OF_BIT / 4 ;i++){\
+      char c=actual_hash[i]; //first nibble for i = 0
+      int intval = (c >= 'a') ? (c - 'a' + 10) : (c - '0');
+      //intval=intval<<4;
+      id <<= 4;
+      id |= intval;
+    }
 
-    intval=intval<<4;
-
-    std::bitset<NO_OF_BIT> id(intval);
-    c=actual_hash[1];
-    intval =  (c >= 'a') ? (c - 'a' + 10) : (c - '0');
-
-    id|=intval;
     std::cout<<"actual_hash "<<actual_hash<<std::endl
       <<" truncated_hash: "<<id<<std::endl;
     return id.to_string();
@@ -336,7 +366,7 @@ splitted_entries_type split_and_hash_file(fs::path file){
 
   for(int i = 0; i<no_of_pieces - 1; i++){
     std::string data(PIECE_SIZE, '\0');
-    fileptr.read(&data[0], PIECE_SIZE);
+    sstream.read(&data[0], PIECE_SIZE);
     std::string hash=get_hash(data);
     pieces_content.emplace_back(hash,data);
   }
@@ -344,7 +374,7 @@ splitted_entries_type split_and_hash_file(fs::path file){
   //read last piece
   auto last_piece_size = file_size % PIECE_SIZE;
   std::string data(last_piece_size, '\0');
-  fileptr.read(&data[0], last_piece_size);
+  sstream.read(&data[0], last_piece_size);
   pieces_content.emplace_back(get_hash(data).c_str(),data.c_str());
 
   //std::for_each(pieces_content.begin(), pieces_content.end(),
@@ -427,22 +457,21 @@ void retrieve_directory(fs::path dir_path){
 
 
 void retrieve_file(fs::path file_path){
-  /*
   std::cout<<"retrieving file: "<<file_path<<std::endl;
 
   std::ifstream metadata_file{file_path};
   std::string line;
   std::vector<std::string> pieces_metadata;
   while(std::getline(metadata_file, line)){
-    piece_hashes.push_back(line);
+    pieces_metadata.push_back(line);
   }
 
   std::cout<<"total pieces: "<<pieces_metadata.size()<<std::endl;
   std::cout<<"piece hashes: \n";
 
-  std::vector<std::pair<kademlia::ID, std::vector<kademlia::ID>>> all_storing_nodes;
+  std::vector<std::pair<kademlia::ID, std::vector<kademlia::routing_table::value_type>>> all_storing_nodes;
   for(const auto& piece_metadata: pieces_metadata){
-    std::vector<kademlia::ID> storing_nodes;
+    std::vector<kademlia::routing_table::value_type> storing_nodes;
     std::stringstream sstream;
     sstream<< piece_metadata;
     std::string id;
@@ -450,16 +479,41 @@ void retrieve_file(fs::path file_path){
     sstream>>id;//piece_id
     kademlia::ID piece_id{id};
 
-    while(sstream)
+    kademlia::endpoint_type ep;
+    //std::cout<<"storing nodes: "<<std::endl;
+    while(sstream>>id && sstream>>ep){
+      storing_nodes.emplace_back(id, ep);
+      //std::cout<<id<<" " <<ep<<std::endl;
+    }
 
-
-
+    all_storing_nodes.emplace_back(piece_id, storing_nodes);
     //std::cout<<e<<std::endl;
   }
 
-  client.retrieve_file()
+  std::stringstream content_stream;
+  try{
+    for(const auto& [piece_hash, storing_nodes] : all_storing_nodes){
+      std::string content = client.retrieve_file(piece_hash, storing_nodes);
+      content_stream<<content;
+    }
+  }
+  catch(int){
+    return;
+  }
 
-  /*
+  std::cout<<"content size: "<<content_stream.str().size()<<std::endl;
+
+  std::string decrypted_content = decrypt(content_stream.str());
+
+  fs::path dest_path{retrieved_data_path/file_path.filename()};
+  std::ofstream fptr{dest_path};
+  fptr<<decrypted_content;
+  std::cout<<"retrieved data in file: "<<dest_path<<std::endl;
+  //content_stream << content;
+}
+
+
+/*
     std::shared_ptr<std::map<std::string,std::string>> piece_contents = std::make_shared<std::map<std::string,std::string>>();
 
     for(const std::string hash: piece_hashes){
@@ -505,4 +559,3 @@ void retrieve_file(fs::path file_path){
     session.async_load( hash, std::move( on_load ) );
     }
     */
-}

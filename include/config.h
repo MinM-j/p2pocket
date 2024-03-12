@@ -12,7 +12,7 @@
 #include<filesystem>
 
 //for now keep it here
-inline constexpr int NO_OF_BIT = 8 ;
+inline constexpr int NO_OF_BIT = 16 ;
 inline constexpr int CURRENT_BUCKET_SIZE=4;
 
 namespace kademlia{
@@ -29,6 +29,7 @@ inline const std::string encryption_key_file{"encryption_key.dat"};
 inline const std::string routing_table_file{"routing_table.dat"};
 
 inline const int replica_count=2;
+inline const uint16_t boot_port=8849;
 }
 
 #endif //CONFIG_H
