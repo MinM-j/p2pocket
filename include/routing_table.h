@@ -2,6 +2,7 @@
 #define ROUTING_TABLE_H
 
 #include<iostream>
+#include <fstream>
 #include<string>
 #include<bitset>
 #include<random>
@@ -9,6 +10,13 @@
 #include<array>
 #include<filesystem>
 #include <algorithm>
+
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/serialization/array.hpp>
+#include <boost/serialization/list.hpp>
+#include <boost/serialization/utility.hpp>
+#include <boost/serialization/bitset.hpp>
 
 #include<id.h>
 #include<config.h>
@@ -60,8 +68,33 @@ public:
   static k_bucket::const_iterator  find_node_in_bucket(const k_bucket& bucket, const kademlia::ID& node_id);
   static bool is_node_in_bucket(const k_bucket& bucket, const kademlia::ID& node_id);
 private: 
+  class k_buckets_serialization {
+  private:
+    using k_buckets=kademlia::routing_table::k_buckets;
+    std::string serialized;
+  public:
+    k_buckets s;
 
+    k_buckets_serialization()=default;
+    k_buckets_serialization(const k_buckets& data): s{data}{}
+
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version)
+    {
+      ar & s;
+    }
+
+    std::string serialize(){
+      std::stringstream stream_data;
+      boost::archive::binary_oarchive oa(stream_data);
+      oa << *this;
+      return stream_data.str();
+    }
+
+  };
   std::size_t find_k_bucket_index(const kademlia::ID& peer_id);
+  bool retrieve();
+  void persist();
 
 };
 }//namespace kademlia

@@ -174,4 +174,31 @@ std::size_t routing_table::find_k_bucket_index(const kademlia::ID& peer_id){
   return NO_OF_BIT - 1 - i;
 }
 
+bool routing_table::retrieve(){
+	fs::path file_name{	};
+	if(std::filesystem::exists(file_name)){
+		k_buckets_serialization to_k_buckets{};
+		std::ifstream file{file_name};
+		boost::archive::binary_iarchive ia(file);
+		ia >> to_k_buckets;
+		m_k_buckets = to_k_buckets.s;
+		file.close();
+	}
+	return false;
+}
+
+void routing_table::persist(){
+	k_buckets_serialization to_k_buckets{m_k_buckets};
+
+	std::string serialized_k_buckets = to_k_buckets.serialize();
+	
+	fs::path file_name{	};
+
+	std::ofstream file{file_name};
+
+	file << serialized_k_buckets;
+
+	file.close();
+}
+
 }//namespace kademlia

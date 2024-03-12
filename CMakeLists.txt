@@ -35,3 +35,4 @@ add_executable(Bootstrap ${Path}/bootstrap.cpp  ${Headers} ${Sources} ${Debug_fi
 target_include_directories(Bootstrap PUBLIC ${Path}/include)
 target_include_directories(Bootstrap PUBLIC ${Path})
 TARGET_LINK_LIBRARIES(Bootstrap LINK_PUBLIC ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(Bootstrap LINK_PUBLIC ${OPENSSL_LIBRARIES})
