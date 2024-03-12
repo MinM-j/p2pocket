@@ -174,9 +174,6 @@ void client::send_find_id_request(endpoint_type endpoint, ID node_id){
 void client::send_find_value_request(endpoint_type endpoint, ID piece_id){
   message request{messageType::FIND_VALUE, self_id};
   request<<piece_id;
-  std::cout<<"ep: "<<endpoint<<std::endl;
-
-  std::cout<<"ETST"<<std::endl;
   send(endpoint, request);
 }
 
@@ -267,9 +264,9 @@ void client::set_log_byte(bool log_byte){
 std::vector<kademlia::routing_table::value_type> client::store_file(ID file_hash, std::string content){
   std::cout<<"\n\n";
   std::cout<<"responses in map:"<<std::endl;
-    //TEMP BUG FIX
+  //TEMP BUG FIX
   responses.clear();
-    //std::cout<<"id: "<<id<<" "<<msg.header.msg_type<<std::endl;
+  //std::cout<<"id: "<<id<<" "<<msg.header.msg_type<<std::endl;
   /*
    * find all the closest nodes to the file_hash present in the routing table 
    * send find_node request to current closest nodes
@@ -570,7 +567,7 @@ std::string client::retrieve_file(kademlia::ID piece_hash, const std::vector<kad
 
   nodes_tracker_type storing_nodes_tracker;
 
-  std::cout<<"TEST"<<std::endl;
+  //std::cout<<"TEST"<<std::endl;
 
   for(const auto& [storing_node_id , endpoint]: storing_nodes){
     send_find_value_request(endpoint, piece_hash);
@@ -579,7 +576,7 @@ std::string client::retrieve_file(kademlia::ID piece_hash, const std::vector<kad
 
   wait_responses_type storing_node_responses = wait_for_responses(storing_nodes_tracker,messageType::FIND_VALUE_RESPONSE);
 
-  if(storing_node_responses.empty()){
+  if(!storing_node_responses.empty()){
     for(auto [storing_node, response]: storing_node_responses){
       std::string content;
       response>>content;
