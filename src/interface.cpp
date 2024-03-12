@@ -226,7 +226,7 @@ void execute_list_files(){
 
 void execute_store_command(const args_type& args){
   //TODO: IMP: frequent crash automatically 
-  //TODO: IMP: cannot close and start node again
+  //TODO: IMP: cannot close and start node again 
   //TODO: IMP: directory name in each recursion (store directory)
   //======================
   //TODO: IMP: iterate through all args(paths)
@@ -249,6 +249,7 @@ void execute_store_command(const args_type& args){
     throw std::invalid_argument("invalid file or directory path: "+file_or_dir_path);// may not work without c_str()
   }
 
+  fs::path dir_path_tracker{};
   if(fs::is_directory(file_or_dir_path)){
     std::cout<<"storing directory: "<<file_or_dir_path <<std::endl;
     store_directory(file_or_dir_path);
@@ -267,7 +268,8 @@ void store_directory(fs::path dir_path){
       store_directory(dir_entry);
     } else if (fs::is_regular_file(dir_entry)) {
       // If the entry is a regular file, call the storefile function
-      store_file(dir_entry);
+      std::cout<<"file: "<<dir_entry.path().filename()<<std::endl;
+      //store_file(dir_entry);
     }
     else{
       //not a regular file or directory
